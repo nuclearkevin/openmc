@@ -237,7 +237,7 @@ class Settings:
             also tends to dampen the convergence rate of the solver, thus requiring
             more iterations to converge.
         :adjoint_source:
-            Source object used to define localized adjoint source/detector response 
+            Source object used to define localized adjoint source/detector response
             function.
 
         .. versionadded:: 0.15.0
@@ -474,6 +474,7 @@ class Settings:
         self._material_cell_offsets = None
         self._log_grid_bins = None
         self._delta_tracking = None
+        self._delta_tracking_majorant_file = None
         self._event_based = None
         self._max_particles_in_flight = None
         self._max_particle_events = None
@@ -1234,10 +1235,19 @@ class Settings:
     def delta_tracking(self):
         return self._delta_tracking
 
+    @property
+    def delta_tracking_majorant_file(self):
+        return self._delta_tracking_majorant_file
+
     @delta_tracking.setter
     def delta_tracking(self, value):
-        cv.check_type('event_based', value, bool)
+        cv.check_type('delta_tracking', value, bool)
         self._delta_tracking = value
+
+    @delta_tracking_majorant_file.setter
+    def delta_tracking_majorant_file(self, value):
+        cv.check_type('delta_tracking_majorant_file', value, str)
+        self._delta_tracking_majorant_file = value
 
     @property
     def material_cell_offsets(self) -> bool:
@@ -1991,6 +2001,11 @@ class Settings:
         if self._delta_tracking:
             elem = ET.SubElement(root, "delta_tracking")
             elem.text = str(self._delta_tracking).lower()
+    def _create_delta_tracking_maj_file_subelement(self, root):
+        if self._delta_tracking:
+            if self.delta_tracking_majorant_file != None:
+              elem = ET.SubElement(root, "delta_tracking_majorant_file")
+              elem.text = str(self._delta_tracking_majorant_file)
 
     def _create_random_ray_subelement(self, root, mesh_memo=None):
         if self._random_ray:
@@ -2020,11 +2035,11 @@ class Settings:
                         path = f"./mesh[@id='{mesh.id}']"
                         if root.find(path) is None:
                             root.append(mesh.to_xml_element())
-                            if mesh_memo is not None:    
+                            if mesh_memo is not None:
                                 mesh_memo.add(mesh.id)
                 elif key == 'adjoint_source':
                     subelement = ET.SubElement(element, 'adjoint_source')
-                    # Check that all entries are valid SourceBase instances, in case 
+                    # Check that all entries are valid SourceBase instances, in case
                     # the random_ray setter was not used to populate dict entries.
                     if not isinstance(value, MutableSequence):
                         value = [value]
@@ -2621,6 +2636,7 @@ class Settings:
         self._create_source_rejection_fraction_subelement(element)
         self._create_free_gas_threshold_subelement(element)
         self._create_delta_tracking_subelement(element)
+        self._create_delta_tracking_maj_file_subelement(element)
 
         # Clean the indentation in the file to be user-readable
         clean_indentation(element)
