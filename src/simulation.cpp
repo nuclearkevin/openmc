@@ -86,7 +86,10 @@ int openmc_simulation_init()
     initialize_data();
   }
 
-  if (settings::delta_tracking) create_majorant();
+  // Create the majorant cross sections for delta tracking.
+  if (settings::delta_tracking) {
+    create_majorants();
+  }
 
   // Determine how much work each process should do
   calculate_work();
@@ -647,8 +650,9 @@ void initialize_history(Particle& p, int64_t index_source)
   }
 
   // Compute the majorant.
-  if (settings::delta_tracking)
+  if (settings::delta_tracking) {
     p.update_majorant();
+  }
 
   // Add paricle's starting weight to count for normalizing tallies later
 #pragma omp atomic
@@ -862,10 +866,7 @@ void transport_delta_tracking_single_particle(Particle& p)
         fmt::format("Ratio of the total cross section ({}) to the majorant "
                     "cross section ({}) for particle {} with energy {} is "
                     "greater than unity!",
-        p.macro_xs().total,
-        p.majorant(),
-        p.id(),
-        p.E()));
+                    p.macro_xs().total, p.majorant(), p.id(), p.E()));
       break;
     }
     if (prn(p.current_seed()) < (p.macro_xs().total / p.majorant())) {
