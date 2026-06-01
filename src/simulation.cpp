@@ -939,11 +939,12 @@ void transport_delta_history_based_single_particle(Particle& p)
 
 void transport_history_based()
 {
+  const bool using_delta_tracking = settings::delta_tracking;
 #pragma omp parallel for schedule(runtime)
   for (int64_t i_work = 1; i_work <= simulation::work_per_rank; ++i_work) {
     Particle p;
     initialize_particle_track(p, i_work, false);
-    if (settings::delta_tracking) {
+    if (using_delta_tracking) {
       transport_delta_history_based_single_particle(p);
     } else {
       transport_history_based_single_particle(p);
@@ -961,6 +962,8 @@ void transport_history_based()
 // continues until there are no more secondary tracks left to transport.
 void transport_history_based_shared_secondary()
 {
+  const bool using_delta_tracking = settings::delta_tracking;
+
   // Clear shared secondary banks from any prior use
   simulation::shared_secondary_bank_read.clear();
   simulation::shared_secondary_bank_write.clear();
@@ -985,7 +988,7 @@ void transport_history_based_shared_secondary()
     for (int64_t i = 1; i <= simulation::work_per_rank; i++) {
       Particle p;
       initialize_particle_track(p, i, false);
-      if (settings::delta_tracking) {
+      if (using_delta_tracking) {
         transport_delta_history_based_single_particle(p);
       } else {
         transport_history_based_single_particle(p);
@@ -1057,7 +1060,7 @@ void transport_history_based_shared_secondary()
         initialize_particle_track(p, i, true);
         SourceSite& site = simulation::shared_secondary_bank_read[i - 1];
         p.event_revive_from_secondary(site);
-        if (settings::delta_tracking) {
+        if (using_delta_tracking) {
           transport_delta_history_based_single_particle(p);
         } else {
           transport_history_based_single_particle(p);
