@@ -6,6 +6,98 @@ import openmc
 
 PINCELL_PITCH = 1.26 # cm
 
+def delta_tracking_lattice(
+    run_photon: bool = False,
+    boundary_type: str = 'reflective',
+    densities: list[float] | None = None) -> openmc.Model:
+    """Create a simple PWR-style lattice for testing delta tracking.
+
+    Parameters
+    ----------
+    run_photon : bool, optional
+        If coupled neutron-photon transport should be run or not.
+    boundary_type : str, optional
+        The boundary to apply to the outer surface of the infinite lattice.
+    densities : list of float, optional
+        The distributed cell densities to apply to cell 1 (the fuel) in the
+        infinite lattice.
+
+    Returns
+    -------
+    model : openmc.Model
+        A PWR-style 2x2 infinite assembly model
+
+    """
+    openmc.reset_auto_ids()
+    model = openmc.Model()
+
+    DELTA_PIN_RADIUS = 0.4
+
+    # Create some simple materials. UO2 fuel for the inner cylinder in the pin,
+    # and water for the remainder of the domain.
+    uo2 = openmc.Material(name='UO2')
+    uo2.set_density('g/cm3', 10.0)
+    uo2.add_nuclide('U235', 1.0)
+    uo2.add_nuclide('O16', 2.0)
+    water = openmc.Material(name='light water')
+    water.add_nuclide('H1', 2.0)
+    water.add_nuclide('O16', 1.0)
+    water.set_density('g/cm3', 1.0)
+    water.add_s_alpha_beta('c_H_in_H2O')
+    model.materials.extend([uo2, water])
+
+    # Create the geometry, starting with the fuel pincell.
+    cyl = openmc.ZCylinder(r=DELTA_PIN_RADIUS)
+    pin = openmc.model.pin([cyl], [uo2, water])
+
+    # Create a 2x2 lattice to allow for distributed properties.
+    lattice = openmc.RectLattice()
+    lattice.lower_left = (-PINCELL_PITCH, -PINCELL_PITCH)
+    lattice.pitch = (PINCELL_PITCH, PINCELL_PITCH)
+    lattice.universes = [[pin, pin],
+                         [pin, pin]]
+    box = openmc.model.RectangularPrism(
+        2.0 * PINCELL_PITCH, 2.0 * PINCELL_PITCH,
+        origin=(0.0, 0.0),
+        boundary_type=boundary_type
+    )
+
+    # Set distributed densities if required.
+    if densities != None:
+        pin.cells[1].density = densities
+
+    # Finally, save the geometry.
+    model.geometry = openmc.Geometry([openmc.Cell(fill=lattice, region=-box)])
+    model.geometry.merge_surfaces = True
+
+    # Add a mesh tally for the neutron total reaction rate.
+    msh = openmc.RegularMesh()
+    msh.lower_left = (-PINCELL_PITCH, -PINCELL_PITCH)
+    msh.upper_right = (PINCELL_PITCH, PINCELL_PITCH)
+    msh.dimension = (2, 2)
+    t = openmc.Tally()
+    t.filters = [openmc.ParticleFilter(bins='neutron'), openmc.MeshFilter(mesh=msh)]
+    t.scores = ['total']
+    t.estimator = 'collision'
+    model.tallies.append(t)
+
+    # If photon transport is required, add a mesh tally for the photon total reaction rate.
+    if run_photon:
+        t = openmc.Tally()
+        t.filters = [openmc.ParticleFilter(bins='photon'), openmc.MeshFilter(mesh=msh)]
+        t.scores = ['total']
+        t.estimator = 'collision'
+        model.tallies.append(t)
+
+    # Set some simulation settings.
+    model.settings.batches = 10
+    model.settings.inactive = 5
+    model.settings.particles = 1000
+    model.settings.delta_tracking = True
+    model.settings.photon_transport = run_photon
+
+    return model
+
 def pwr_pin_cell() -> openmc.Model:
     """Create a PWR pin-cell model.
 
@@ -968,7 +1060,7 @@ def random_ray_lattice(second_temp = False) -> openmc.Model:
         Whether or not the cross sections should contain two temperature datapoints.
         The first data point is the C5G7 cross sections, which corresponds to a temperature
         of 294 K. The second data point is the C5G7 cross sections multiplied by 1/2,
-        which corresponds to a temperature of 3934 K. This temperature dependence is
+        which corresponds to a temperature of 394 K. This temperature dependence is
         fictitious; it is used for testing temperature feedback in the random ray solver.
 
     Returns
@@ -1314,17 +1406,17 @@ def random_ray_three_region_cube() -> openmc.Model:
 def random_ray_three_region_cube_with_detectors() -> openmc.Model:
     """Create a three region cube model with two external tally regions.
 
-    This is an adaptation of the simple monoenergetic problem of a cube with 
-    three concentric cubic regions. The innermost region is near void (with 
-    Sigma_t around 10^-5) and contains an external isotropic source term, the 
-    middle region is a mild scatterer (with Sigma_t around 10^-3), and the 
-    outer region of the cube is a scatterer and absorber (with Sigma_t around 
+    This is an adaptation of the simple monoenergetic problem of a cube with
+    three concentric cubic regions. The innermost region is near void (with
+    Sigma_t around 10^-5) and contains an external isotropic source term, the
+    middle region is a mild scatterer (with Sigma_t around 10^-3), and the
+    outer region of the cube is a scatterer and absorber (with Sigma_t around
     1).
 
-    Two cubic "detector" regions are found outside this geometry, one along the 
-    y-axis near z=0, and the other in the upper right corner of the system. 
-    The size of each detector is scaled to be equal to that of the source 
-    region. The model returned by this function contains cell tallies on each 
+    Two cubic "detector" regions are found outside this geometry, one along the
+    y-axis near z=0, and the other in the upper right corner of the system.
+    The size of each detector is scaled to be equal to that of the source
+    region. The model returned by this function contains cell tallies on each
     detector.
 
     Returns
@@ -1498,29 +1590,29 @@ def random_ray_three_region_cube_with_detectors() -> openmc.Model:
         fill=absorber_mat,
         region=detector2_region
     )
-    
+
     external_x = (
-        +x_high & +y_low & +z_low & -x_outer & 
+        +x_high & +y_low & +z_low & -x_outer &
         ((-y_outer & -z_high) | (-y_high & +z_high & -z_outer))
     )
     external_y = (
-        +y_high & -y_outer & 
+        +y_high & -y_outer &
         (
-            (+detector1_right & -x_high & +z_low & -z_outer) | 
-            (-detector1_right & +x_low & +detector1_top & -z_outer) | 
+            (+detector1_right & -x_high & +z_low & -z_outer) |
+            (-detector1_right & +x_low & +detector1_top & -z_outer) |
             (+x_high & -x_outer & +z_low & -z_high)
         )
     )
     external_z = (
-        +x_low & +y_low & +z_high & -z_outer & 
+        +x_low & +y_low & +z_high & -z_outer &
         ((-y_outer & -x_high) | (-y_high & +x_high & -x_outer))
     )
-    external_cell = openmc.Cell(fill=cavity_mat, 
-                                region=(external_x | external_y | external_z), 
+    external_cell = openmc.Cell(fill=cavity_mat,
+                                region=(external_x | external_y | external_z),
                                 name='outside cube')
 
     root = openmc.Universe(
-        name='root universe', 
+        name='root universe',
         cells=[cube_domain, detector1, detector2, external_cell]
     )
 
@@ -1604,8 +1696,8 @@ def random_ray_three_region_cube_with_detectors() -> openmc.Model:
     source_tally.estimator = estimator
 
     # Instantiate a Tallies collection and export to XML
-    tallies = openmc.Tallies([detector1_tally, 
-                              detector2_tally, 
+    tallies = openmc.Tallies([detector1_tally,
+                              detector2_tally,
                               absorber_tally,
                               cavity_tally,
                               source_tally])
