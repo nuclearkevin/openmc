@@ -12,6 +12,7 @@
 #include "openmc/tallies/derivative.h"
 #include "openmc/tallies/filter.h"
 #include "openmc/tallies/tally.h"
+#include "openmc/universe.h"
 
 namespace openmc {
 
@@ -62,9 +63,9 @@ void GeometryState::advance_to_boundary_from_void()
   const auto& root_universe = model::universes[model::root_universe];
   boundary().reset();
 
-  for (auto c_i : root_universe->cells_) {
+  for (const auto & cell_data : root_universe->cells_) {
     auto dist =
-      model::cells.at(c_i)->distance(root_coord.r(), root_coord.u(), 0, this);
+      model::cells.at(cell_data.i_cell_)->distance(root_coord.r(), root_coord.u(), 0, this);
     if (dist.first < boundary().distance()) {
       boundary().distance() = dist.first;
       boundary().surface() = dist.second;

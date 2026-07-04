@@ -84,6 +84,12 @@ void initialize_particle_track(
 //! appropriate
 void finalize_batch();
 
+//! Sort universe cell lists based on how often a particle is contained in the cell.
+void sort_cell_lists();
+
+//! Zero universe cell list frequency counters.
+void zero_cell_frequency();
+
 //! Finalize a fission generation
 void finalize_generation();
 

@@ -17,7 +17,6 @@
 #include "openmc/neighbor_list.h"
 #include "openmc/position.h"
 #include "openmc/surface.h"
-#include "openmc/universe.h"
 #include "openmc/vector.h"
 
 namespace openmc {
@@ -42,8 +41,6 @@ class Cell;
 class GeometryState;
 class ParentCell;
 class CellInstance;
-class Universe;
-class UniversePartitioner;
 
 namespace model {
 extern std::unordered_map<int32_t, int32_t> cell_map;
@@ -173,6 +170,13 @@ vector<double> parse_cell_density_xml(pugi::xml_node node, int32_t cell_id);
 
 class Cell {
 public:
+  //! A struct to collect the cell index in the global cell array and the number
+  //! of times the cell has been found to contain a particle.
+  struct Info {
+    int32_t i_cell_{C_NONE}; //!< Index of the cell
+    uint64_t cell_freq_{0};  //!< Number of times the cell was found to contain a particle
+  };
+
   //----------------------------------------------------------------------------
   // Constructors, destructors, factory functions
 

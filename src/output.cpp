@@ -41,6 +41,7 @@
 #include "openmc/tallies/tally.h"
 #include "openmc/tallies/tally_scoring.h"
 #include "openmc/timer.h"
+#include "openmc/universe.h"
 
 namespace openmc {
 

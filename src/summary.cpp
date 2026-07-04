@@ -14,6 +14,7 @@
 #include "openmc/output.h"
 #include "openmc/settings.h"
 #include "openmc/surface.h"
+#include "openmc/universe.h"
 
 namespace openmc {
 
