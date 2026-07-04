@@ -22,6 +22,7 @@
 #include "openmc/material.h"
 #include "openmc/nuclide.h"
 #include "openmc/settings.h"
+#include "openmc/universe.h"
 #include "openmc/xml_interface.h"
 
 namespace openmc {
@@ -1191,7 +1192,7 @@ void populate_universes()
     if (it == model::universe_map.end()) {
       model::universes.push_back(make_unique<Universe>());
       model::universes.back()->id_ = uid;
-      model::universes.back()->cells_.push_back(index_cell);
+      model::universes.back()->cells_.push_back({index_cell, 0});
       model::universe_map[uid] = model::universes.size() - 1;
     } else {
 #ifdef OPENMC_DAGMC_ENABLED
@@ -1204,7 +1205,7 @@ void populate_universes()
       }
 #endif
 
-      model::universes[it->second]->cells_.push_back(index_cell);
+      model::universes[it->second]->cells_.push_back({index_cell, 0});
     }
   }
 
@@ -1212,7 +1213,7 @@ void populate_universes()
   for (const auto& it : implicit_comp_cells) {
     int index_univ = it.first;
     int index_cell = it.second;
-    model::universes[index_univ]->cells_.push_back(index_cell);
+    model::universes[index_univ]->cells_.push_back({index_cell, 0});
   }
 
   model::universes.shrink_to_fit();
@@ -1701,8 +1702,8 @@ void Cell::get_contained_cells_inner(
   } else if (type_ == Fill::UNIVERSE) {
     parent_cells.push_back({model::cell_map[id_], -1});
     auto& univ = model::universes[fill_];
-    for (auto cell_index : univ->cells_) {
-      auto& cell = model::cells[cell_index];
+    for (const auto & cell_data : univ->cells_) {
+      auto& cell = model::cells[cell_data.i_cell_];
       cell->get_contained_cells_inner(contained_cells, parent_cells);
     }
     parent_cells.pop_back();
@@ -1713,8 +1714,8 @@ void Cell::get_contained_cells_inner(
     for (auto i = lattice->begin(); i != lattice->end(); ++i) {
       auto& univ = model::universes[*i];
       parent_cells.push_back({model::cell_map[id_], i.indx_});
-      for (auto cell_index : univ->cells_) {
-        auto& cell = model::cells[cell_index];
+      for (const auto & cell_data : univ->cells_) {
+        auto& cell = model::cells[cell_data.i_cell_];
         cell->get_contained_cells_inner(contained_cells, parent_cells);
       }
       parent_cells.pop_back();

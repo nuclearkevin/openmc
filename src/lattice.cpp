@@ -12,6 +12,7 @@
 #include "openmc/hdf5_interface.h"
 #include "openmc/math_functions.h"
 #include "openmc/string_utils.h"
+#include "openmc/universe.h"
 #include "openmc/vector.h"
 #include "openmc/xml_interface.h"
 

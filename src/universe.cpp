@@ -29,17 +29,17 @@ void Universe::to_hdf5(hid_t universes_group) const
   // Write the contained cells.
   if (cells_.size() > 0) {
     vector<int32_t> cell_ids;
-    for (auto i_cell : cells_)
-      cell_ids.push_back(model::cells[i_cell]->id_);
+    for (auto & data : cells_)
+      cell_ids.push_back(model::cells[data.i_cell_]->id_);
     write_dataset(group, "cells", cell_ids);
   }
 
   close_group(group);
 }
 
-bool Universe::find_cell(GeometryState& p) const
+bool Universe::find_cell(GeometryState& p)
 {
-  const auto& cells {
+  auto& cells {
     !partitioner_ ? cells_ : partitioner_->get_cells(p.r_local(), p.u_local())};
 
   Position r {p.r_local()};
@@ -47,12 +47,17 @@ bool Universe::find_cell(GeometryState& p) const
   auto surf = p.surface();
   int32_t i_univ = p.lowest_coord().universe();
 
-  for (auto i_cell : cells) {
-    if (model::cells[i_cell]->universe_ != i_univ)
+  for (auto & cell_data : cells) {
+    if (model::cells[cell_data.i_cell_]->universe_ != i_univ)
       continue;
     // Check if this cell contains the particle
-    if (model::cells[i_cell]->contains(r, u, surf)) {
-      p.lowest_coord().cell() = i_cell;
+    if (model::cells[cell_data.i_cell_]->contains(r, u, surf)) {
+      p.lowest_coord().cell() = cell_data.i_cell_;
+
+      // Accumulate the number of hits on the cell to enable frequency-based sorting.
+#pragma omp atomic
+      ++cell_data.cell_freq_;
+
       return true;
     }
   }
@@ -65,8 +70,8 @@ BoundingBox Universe::bounding_box() const
   if (cells_.size() == 0) {
     return {};
   } else {
-    for (const auto& cell : cells_) {
-      auto& c = model::cells[cell];
+    for (const auto& cell_data : cells_) {
+      auto& c = model::cells[cell_data.i_cell_];
       bbox |= c->bounding_box();
     }
   }
@@ -97,8 +102,8 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
   // Find all of the z-planes in this universe.  A set is used here for the
   // O(log(n)) insertions that will ensure entries are not repeated.
-  for (auto i_cell : univ.cells_) {
-    for (auto token : model::cells[i_cell]->surfaces()) {
+  for (auto & cell_data : univ.cells_) {
+    for (auto token : model::cells[cell_data.i_cell_]->surfaces()) {
       auto i_surf = std::abs(token) - 1;
       const auto* surf = model::surfaces[i_surf].get();
       if (const auto* zplane = dynamic_cast<const SurfaceZPlane*>(surf))
@@ -111,19 +116,19 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
   // Populate the partition lists.
   partitions_.resize(surfs_.size() + 1);
-  for (auto i_cell : univ.cells_) {
+  for (auto & cell_data : univ.cells_) {
     // It is difficult to determine the bounds of a complex cell, so add complex
     // cells to all partitions.
-    if (!model::cells[i_cell]->is_simple()) {
+    if (!model::cells[cell_data.i_cell_]->is_simple()) {
       for (auto& p : partitions_)
-        p.push_back(i_cell);
+        p.push_back({cell_data.i_cell_, 0});
       continue;
     }
 
     // Find the tokens for bounding z-planes.
     int32_t lower_token = 0, upper_token = 0;
     double min_z, max_z;
-    for (auto token : model::cells[i_cell]->surfaces()) {
+    for (auto token : model::cells[cell_data.i_cell_]->surfaces()) {
       const auto* surf = model::surfaces[std::abs(token) - 1].get();
       if (const auto* zplane = dynamic_cast<const SurfaceZPlane*>(surf)) {
         if (lower_token == 0 || zplane->z0_ < min_z) {
@@ -140,7 +145,7 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
     // If there are no bounding z-planes, add this cell to all partitions.
     if (lower_token == 0) {
       for (auto& p : partitions_)
-        p.push_back(i_cell);
+        p.push_back({cell_data.i_cell_, 0});
       continue;
     }
 
@@ -172,13 +177,13 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
     // Add the cell to all relevant partitions.
     for (int i = first_partition; i <= last_partition; ++i) {
-      partitions_[i].push_back(i_cell);
+      partitions_[i].push_back({cell_data.i_cell_, 0});
     }
   }
 }
 
-const vector<int32_t>& UniversePartitioner::get_cells(
-  Position r, Direction u) const
+vector<Cell::Info>& UniversePartitioner::get_cells(
+  Position r, Direction u)
 {
   // Perform a binary search for the partition containing the given coordinates.
   int left = 0;

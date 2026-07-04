@@ -33,6 +33,7 @@
 #include "openmc/simulation.h"
 #include "openmc/state_point.h"
 #include "openmc/string_utils.h"
+#include "openmc/universe.h"
 #include "openmc/xml_interface.h"
 
 namespace openmc {

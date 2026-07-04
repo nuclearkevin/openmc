@@ -26,6 +26,7 @@
 #include "openmc/tallies/trigger.h"
 #include "openmc/timer.h"
 #include "openmc/track_output.h"
+#include "openmc/universe.h"
 #include "openmc/weight_windows.h"
 
 #ifdef _OPENMP
@@ -243,6 +244,9 @@ int openmc_simulation_finalize()
   if (settings::check_overlaps)
     print_overlap_check();
 
+  // Zero out the frequency counters in universe cell lists.
+  zero_cell_frequency();
+
   // Reset flags
   simulation::initialized = false;
   return 0;
@@ -292,6 +296,10 @@ int openmc_next_batch(int* status)
   }
 
   finalize_batch();
+
+  // Sort cells so the cells which contain particles more often are
+  // checked first during linear searches.
+  sort_cell_lists();
 
   // Check simulation ending criteria
   if (status) {
@@ -529,6 +537,41 @@ void finalize_batch()
   // Write collision track file if requested
   if (settings::collision_track) {
     collision_track_flush_bank();
+  }
+}
+
+void sort_cell_lists()
+{
+  auto compare = [](const Cell::Info & a, const Cell::Info & b)
+  {
+    return a.cell_freq_ > b.cell_freq_;
+  };
+
+  for (auto & uni : model::universes) {
+    if (uni->partitioner_) {
+      for (auto & part : uni->partitioner_->partitions_) {
+        std::sort(part.begin(), part.end(), compare);
+      }
+    } else {
+      std::sort(uni->cells_.begin(), uni->cells_.end(), compare);
+    }
+  }
+}
+
+void zero_cell_frequency()
+{
+  for (auto & uni : model::universes) {
+    if (uni->partitioner_) {
+      for (auto & part : uni->partitioner_->partitions_) {
+        for (auto & cell_data : part) {
+          cell_data.cell_freq_ = 0;
+        }
+      }
+    } else {
+      for (auto & cell_data : uni->cells_) {
+        cell_data.cell_freq_ = 0;
+      }
+    }
   }
 }
 

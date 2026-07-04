@@ -15,6 +15,7 @@
 #include "openmc/random_lcg.h"
 #include "openmc/settings.h"
 #include "openmc/timer.h"
+#include "openmc/universe.h"
 #include "openmc/xml_interface.h"
 
 #include "openmc/tensor.h"

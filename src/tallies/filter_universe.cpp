@@ -6,6 +6,7 @@
 
 #include "openmc/cell.h"
 #include "openmc/error.h"
+#include "openmc/universe.h"
 #include "openmc/xml_interface.h"
 
 namespace openmc {
