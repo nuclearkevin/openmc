@@ -48,7 +48,7 @@ int check_cell_overlap(GeometryState& p, bool error)
     Universe& univ = *model::universes[p.coord(j).universe()];
 
     // Loop through each cell on this level
-    for (const auto & cell_data : univ.cells_) {
+    for (const auto& cell_data : univ.cells_) {
       Cell& c = *model::cells[cell_data.i_cell_];
       if (c.contains(p.coord(j).r(), p.coord(j).u(), p.surface())) {
 #pragma omp atomic

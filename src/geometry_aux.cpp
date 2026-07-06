@@ -153,7 +153,7 @@ void partition_universes()
     if (univ->cells_.size() > 10) {
       // Collect the set of surfaces in this universe.
       std::unordered_set<int32_t> surf_inds;
-      for (const auto & cell_data : univ->cells_) {
+      for (const auto& cell_data : univ->cells_) {
         for (auto token : model::cells[cell_data.i_cell_]->surfaces()) {
           surf_inds.insert(std::abs(token) - 1);
         }
@@ -403,7 +403,7 @@ void prepare_distribcell(const std::vector<int32_t>* user_distribcells)
   // distribcell array index according to the containing universe.
   vector<int32_t> target_univ_ids;
   for (const auto& u : model::universes) {
-    for (const auto & cell_data : u->cells_) {
+    for (const auto& cell_data : u->cells_) {
       if (distribcells.find(cell_data.i_cell_) != distribcells.end()) {
         if (!contains(target_univ_ids, u->id_)) {
           target_univ_ids.push_back(u->id_);
@@ -433,7 +433,7 @@ void prepare_distribcell(const std::vector<int32_t>* user_distribcells)
     std::unordered_map<int32_t, int32_t> univ_count_memo;
     for (const auto& univ : model::universes) {
       int32_t offset = 0;
-      for (const auto & cell_data : univ->cells_) {
+      for (const auto& cell_data : univ->cells_) {
         Cell& c = *model::cells[cell_data.i_cell_];
 
         if (c.type_ == Fill::UNIVERSE) {
@@ -480,7 +480,7 @@ int count_universe_instances(int32_t search_univ, int32_t target_univ_id,
   }
 
   int count {0};
-  for (const auto & cell_data : model::universes[search_univ]->cells_) {
+  for (const auto& cell_data : model::universes[search_univ]->cells_) {
     Cell& c = *model::cells[cell_data.i_cell_];
 
     if (c.type_ == Fill::UNIVERSE) {
@@ -515,7 +515,7 @@ std::string distribcell_path_inner(int32_t target_cell, int32_t map,
 
   // Check to see if this universe directly contains the target cell.  If so,
   // write to the path and return.
-  for (const auto & cell_data : search_univ.cells_) {
+  for (const auto& cell_data : search_univ.cells_) {
     if ((cell_data.i_cell_ == target_cell) && (offset == target_offset)) {
       Cell& c = *model::cells[cell_data.i_cell_];
       path << "c" << c.id_;
@@ -604,7 +604,7 @@ int maximum_levels(int32_t univ)
 
   int levels_below {0};
 
-  for (const auto & cell_data : model::universes[univ]->cells_) {
+  for (const auto& cell_data : model::universes[univ]->cells_) {
     Cell& c = *model::cells[cell_data.i_cell_];
     if (c.type_ == Fill::UNIVERSE) {
       int32_t next_univ = c.fill_;

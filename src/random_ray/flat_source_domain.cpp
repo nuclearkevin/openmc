@@ -1148,8 +1148,9 @@ void FlatSourceDomain::convert_external_sources(bool use_adjoint_sources)
         for (int32_t universe_id : domain_ids) {
           int32_t i_universe = model::universe_map[universe_id];
           Universe& universe = *model::universes[i_universe];
-          for (const auto & cell_data : universe.cells_) {
-            apply_external_source_to_cell_and_children(cell_data.i_cell_, es, C_NONE);
+          for (const auto& cell_data : universe.cells_) {
+            apply_external_source_to_cell_and_children(
+              cell_data.i_cell_, es, C_NONE);
           }
         }
       }
@@ -1518,8 +1519,9 @@ void FlatSourceDomain::apply_meshes()
       } else if (domain_type == Source::DomainType::UNIVERSE) {
         int32_t i_universe = model::universe_map[domain_id];
         Universe& universe = *model::universes[i_universe];
-        for (const auto & cell_data : universe.cells_) {
-          apply_mesh_to_cell_and_children(cell_data.i_cell_, mesh_idx, C_NONE, false);
+        for (const auto& cell_data : universe.cells_) {
+          apply_mesh_to_cell_and_children(
+            cell_data.i_cell_, mesh_idx, C_NONE, false);
         }
       }
     }
