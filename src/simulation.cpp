@@ -551,7 +551,7 @@ void finalize_batch()
 
 void sort_cell_lists()
 {
-  auto compare = [](const Cell::Info & a, const Cell::Info & b) {
+  auto compare = [](const CellFrequencyItem & a, const CellFrequencyItem & b) {
     return a.cell_freq_ > b.cell_freq_;
   };
 
