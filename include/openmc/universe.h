@@ -71,6 +71,7 @@ public:
   //! `surfs_.back()`.  Otherwise, `partitions_[i]` gives cells sandwiched
   //! between `surfs_[i-1]` and `surfs_[i]`.
   vector<vector<CellFrequencyItem>> partitions_;
+
 private:
   //! A sorted vector of indices to surfaces that partition the universe
   vector<int32_t> surfs_;

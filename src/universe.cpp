@@ -29,7 +29,7 @@ void Universe::to_hdf5(hid_t universes_group) const
   // Write the contained cells.
   if (cells_.size() > 0) {
     vector<int32_t> cell_ids;
-    for (auto & data : cells_)
+    for (auto& data : cells_)
       cell_ids.push_back(model::cells[data.i_cell_]->id_);
     write_dataset(group, "cells", cell_ids);
   }
@@ -47,14 +47,15 @@ bool Universe::find_cell(GeometryState& p)
   auto surf = p.surface();
   int32_t i_univ = p.lowest_coord().universe();
 
-  for (auto & cell_data : cells) {
+  for (auto& cell_data : cells) {
     if (model::cells[cell_data.i_cell_]->universe_ != i_univ)
       continue;
     // Check if this cell contains the particle
     if (model::cells[cell_data.i_cell_]->contains(r, u, surf)) {
       p.lowest_coord().cell() = cell_data.i_cell_;
 
-      // Accumulate the number of hits on the cell to enable frequency-based sorting.
+      // Accumulate the number of hits on the cell to enable frequency-based
+      // sorting.
 #pragma omp atomic
       ++cell_data.cell_freq_;
 
@@ -102,7 +103,7 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
   // Find all of the z-planes in this universe.  A set is used here for the
   // O(log(n)) insertions that will ensure entries are not repeated.
-  for (auto & cell_data : univ.cells_) {
+  for (auto& cell_data : univ.cells_) {
     for (auto token : model::cells[cell_data.i_cell_]->surfaces()) {
       auto i_surf = std::abs(token) - 1;
       const auto* surf = model::surfaces[i_surf].get();
@@ -116,7 +117,7 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
   // Populate the partition lists.
   partitions_.resize(surfs_.size() + 1);
-  for (auto & cell_data : univ.cells_) {
+  for (auto& cell_data : univ.cells_) {
     // It is difficult to determine the bounds of a complex cell, so add complex
     // cells to all partitions.
     if (!model::cells[cell_data.i_cell_]->is_simple()) {

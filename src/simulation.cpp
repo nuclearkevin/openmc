@@ -551,16 +551,16 @@ void finalize_batch()
 
 void sort_cell_lists()
 {
-  auto compare = [](const CellFrequencyItem & a, const CellFrequencyItem & b) {
+  auto compare = [](const CellFrequencyItem& a, const CellFrequencyItem& b) {
     return a.cell_freq_ > b.cell_freq_;
   };
 
   // Sort universe cell lists.
 #pragma omp parallel for
   for (int i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
-    auto & uni = model::universes[i_universe];
+    auto& uni = model::universes[i_universe];
     if (uni->partitioner_) {
-      for (auto & part : uni->partitioner_->partitions_) {
+      for (auto& part : uni->partitioner_->partitions_) {
         std::sort(part.begin(), part.end(), compare);
       }
     } else {
@@ -571,15 +571,15 @@ void sort_cell_lists()
 
 void zero_cell_frequency()
 {
-  for (auto & uni : model::universes) {
+  for (auto& uni : model::universes) {
     if (uni->partitioner_) {
-      for (auto & part : uni->partitioner_->partitions_) {
-        for (auto & cell_data : part) {
+      for (auto& part : uni->partitioner_->partitions_) {
+        for (auto& cell_data : part) {
           cell_data.cell_freq_ = 0;
         }
       }
     } else {
-      for (auto & cell_data : uni->cells_) {
+      for (auto& cell_data : uni->cells_) {
         cell_data.cell_freq_ = 0;
       }
     }

@@ -402,8 +402,9 @@ public:
 //! A struct to collect the cell index in the global cell array and the number
 //! of times the cell has been found to contain a particle.
 struct CellFrequencyItem {
-  int32_t i_cell_{C_NONE}; //!< Index of the cell
-  uint64_t cell_freq_{0};  //!< Number of times the cell was found to contain a particle
+  int32_t i_cell_ {C_NONE}; //!< Index of the cell
+  uint64_t cell_freq_ {
+    0}; //!< Number of times the cell was found to contain a particle
 };
 
 struct CellInstanceItem {
