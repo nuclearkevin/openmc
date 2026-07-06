@@ -170,13 +170,6 @@ vector<double> parse_cell_density_xml(pugi::xml_node node, int32_t cell_id);
 
 class Cell {
 public:
-  //! A struct to collect the cell index in the global cell array and the number
-  //! of times the cell has been found to contain a particle.
-  struct Info {
-    int32_t i_cell_{C_NONE}; //!< Index of the cell
-    uint64_t cell_freq_{0};  //!< Number of times the cell was found to contain a particle
-  };
-
   //----------------------------------------------------------------------------
   // Constructors, destructors, factory functions
 
@@ -404,6 +397,13 @@ public:
 
   // Right now, either CSG or DAGMC cells are used.
   virtual GeometryType geom_type() const = 0;
+};
+
+//! A struct to collect the cell index in the global cell array and the number
+//! of times the cell has been found to contain a particle.
+struct CellFrequencyItem {
+  int32_t i_cell_{C_NONE}; //!< Index of the cell
+  uint64_t cell_freq_{0};  //!< Number of times the cell was found to contain a particle
 };
 
 struct CellInstanceItem {

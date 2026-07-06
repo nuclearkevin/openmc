@@ -182,7 +182,7 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
   }
 }
 
-vector<Cell::Info>& UniversePartitioner::get_cells(
+vector<CellFrequencyItem>& UniversePartitioner::get_cells(
   Position r, Direction u)
 {
   // Perform a binary search for the partition containing the given coordinates.

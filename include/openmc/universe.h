@@ -27,9 +27,9 @@ extern vector<unique_ptr<Universe>> universes;
 
 class Universe {
 public:
-  int32_t id_;               //!< Unique ID
-  vector<Cell::Info> cells_; //!< Cells within this universe
-  int32_t n_instances_;      //!< Number of instances of this universe
+  int32_t id_;                      //!< Unique ID
+  vector<CellFrequencyItem> cells_; //!< Cells within this universe
+  int32_t n_instances_;             //!< Number of instances of this universe
 
   //! \brief Write universe information to an HDF5 group.
   //! \param group_id An HDF5 group id.
@@ -61,7 +61,7 @@ public:
   explicit UniversePartitioner(const Universe& univ);
 
   //! Return the list of cells that could contain the given coordinates.
-  vector<Cell::Info>& get_cells(Position r, Direction u);
+  vector<CellFrequencyItem>& get_cells(Position r, Direction u);
 
   //! Vectors listing the indices of the cells that lie within each partition
   //
@@ -70,7 +70,7 @@ public:
   //! `partitions_.back()` gives the cells that lie on the positive side of
   //! `surfs_.back()`.  Otherwise, `partitions_[i]` gives cells sandwiched
   //! between `surfs_[i-1]` and `surfs_[i]`.
-  vector<vector<Cell::Info>> partitions_;
+  vector<vector<CellFrequencyItem>> partitions_;
 private:
   //! A sorted vector of indices to surfaces that partition the universe
   vector<int32_t> surfs_;
