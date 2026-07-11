@@ -18,6 +18,8 @@ vector<unique_ptr<Universe>> universes;
 // Universe implementation
 //==============================================================================
 
+thread_local std::unordered_map<int32_t, std::vector<CellFrequencyItem>> Universe::tl_universe_cell_hits;
+
 void Universe::to_hdf5(hid_t universes_group) const
 {
   // Create a group for this universe.
@@ -29,8 +31,8 @@ void Universe::to_hdf5(hid_t universes_group) const
   // Write the contained cells.
   if (cells_.size() > 0) {
     vector<int32_t> cell_ids;
-    for (auto& data : cells_)
-      cell_ids.push_back(model::cells[data.i_cell_]->id_);
+    for (auto i_cell : cells_)
+      cell_ids.push_back(model::cells[i_cell]->id_);
     write_dataset(group, "cells", cell_ids);
   }
 
@@ -39,29 +41,40 @@ void Universe::to_hdf5(hid_t universes_group) const
 
 bool Universe::find_cell(GeometryState& p)
 {
-  auto& cells {
-    !partitioner_ ? cells_ : partitioner_->get_cells(p.r_local(), p.u_local())};
-
   Position r {p.r_local()};
   Position u {p.u_local()};
   auto surf = p.surface();
   int32_t i_univ = p.lowest_coord().universe();
 
-  for (auto& cell_data : cells) {
-    if (model::cells[cell_data.i_cell_]->universe_ != i_univ)
-      continue;
-    // Check if this cell contains the particle
-    if (model::cells[cell_data.i_cell_]->contains(r, u, surf)) {
-      p.lowest_coord().cell() = cell_data.i_cell_;
+  if (settings::sort_cells) {
+    // Cell sorting disables the partitioner, no need to check it.
+    for (auto& cell_data : tl_universe_cell_hits[i_univ]) {
+      if (model::cells[cell_data.i_cell_]->universe_ != i_univ)
+        continue;
+      // Check if this cell contains the particle
+      if (model::cells[cell_data.i_cell_]->contains(r, u, surf)) {
+        p.lowest_coord().cell() = cell_data.i_cell_;
+        // Accumulate the number of hits on the cell to enable frequency-based
+        // sorting.
+        cell_data.cell_freq_++;
+        return true;
+      }
+    }
+  } else {
+    const auto& cells {
+      !partitioner_ ? cells_ : partitioner_->get_cells(p.r_local(), p.u_local())};
 
-      // Accumulate the number of hits on the cell to enable frequency-based
-      // sorting.
-#pragma omp atomic
-      ++cell_data.cell_freq_;
-
-      return true;
+    for (auto i_cell : cells) {
+      if (model::cells[i_cell]->universe_ != i_univ)
+        continue;
+      // Check if this cell contains the particle
+      if (model::cells[i_cell]->contains(r, u, surf)) {
+        p.lowest_coord().cell() = i_cell;
+        return true;
+      }
     }
   }
+
   return false;
 }
 
@@ -71,8 +84,8 @@ BoundingBox Universe::bounding_box() const
   if (cells_.size() == 0) {
     return {};
   } else {
-    for (const auto& cell_data : cells_) {
-      auto& c = model::cells[cell_data.i_cell_];
+    for (auto i_cell : cells_) {
+      auto& c = model::cells[i_cell];
       bbox |= c->bounding_box();
     }
   }
@@ -103,8 +116,8 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
   // Find all of the z-planes in this universe.  A set is used here for the
   // O(log(n)) insertions that will ensure entries are not repeated.
-  for (auto& cell_data : univ.cells_) {
-    for (auto token : model::cells[cell_data.i_cell_]->surfaces()) {
+  for (auto i_cell : univ.cells_) {
+    for (auto token : model::cells[i_cell]->surfaces()) {
       auto i_surf = std::abs(token) - 1;
       const auto* surf = model::surfaces[i_surf].get();
       if (const auto* zplane = dynamic_cast<const SurfaceZPlane*>(surf))
@@ -117,19 +130,19 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
   // Populate the partition lists.
   partitions_.resize(surfs_.size() + 1);
-  for (auto& cell_data : univ.cells_) {
+  for (auto i_cell : univ.cells_) {
     // It is difficult to determine the bounds of a complex cell, so add complex
     // cells to all partitions.
-    if (!model::cells[cell_data.i_cell_]->is_simple()) {
+    if (!model::cells[i_cell]->is_simple()) {
       for (auto& p : partitions_)
-        p.push_back({cell_data.i_cell_, 0});
+        p.push_back(i_cell);
       continue;
     }
 
     // Find the tokens for bounding z-planes.
     int32_t lower_token = 0, upper_token = 0;
     double min_z, max_z;
-    for (auto token : model::cells[cell_data.i_cell_]->surfaces()) {
+    for (auto token : model::cells[i_cell]->surfaces()) {
       const auto* surf = model::surfaces[std::abs(token) - 1].get();
       if (const auto* zplane = dynamic_cast<const SurfaceZPlane*>(surf)) {
         if (lower_token == 0 || zplane->z0_ < min_z) {
@@ -146,7 +159,7 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
     // If there are no bounding z-planes, add this cell to all partitions.
     if (lower_token == 0) {
       for (auto& p : partitions_)
-        p.push_back({cell_data.i_cell_, 0});
+        p.push_back(i_cell);
       continue;
     }
 
@@ -178,13 +191,13 @@ UniversePartitioner::UniversePartitioner(const Universe& univ)
 
     // Add the cell to all relevant partitions.
     for (int i = first_partition; i <= last_partition; ++i) {
-      partitions_[i].push_back({cell_data.i_cell_, 0});
+      partitions_[i].push_back(i_cell);
     }
   }
 }
 
-vector<CellFrequencyItem>& UniversePartitioner::get_cells(
-  Position r, Direction u)
+const vector<int32_t>& UniversePartitioner::get_cells(
+  Position r, Direction u) const
 {
   // Perform a binary search for the partition containing the given coordinates.
   int left = 0;

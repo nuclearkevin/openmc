@@ -21,6 +21,7 @@ Timer time_statepoint;
 Timer time_tallies;
 Timer time_total;
 Timer time_transport;
+Timer time_sorting_cells;
 Timer time_event_init;
 Timer time_event_calculate_xs;
 Timer time_event_calculate_majorant_xs;
@@ -83,6 +84,7 @@ void reset_timers()
   simulation::time_tallies.reset();
   simulation::time_total.reset();
   simulation::time_transport.reset();
+  simulation::time_sorting_cells.reset();
   simulation::time_event_init.reset();
   simulation::time_event_calculate_xs.reset();
   simulation::time_event_calculate_majorant_xs.reset();

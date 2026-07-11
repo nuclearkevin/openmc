@@ -28,7 +28,7 @@ extern vector<unique_ptr<Universe>> universes;
 class Universe {
 public:
   int32_t id_;                      //!< Unique ID
-  vector<CellFrequencyItem> cells_; //!< Cells within this universe
+  vector<int32_t> cells_; //!< Cells within this universe
   int32_t n_instances_;             //!< Number of instances of this universe
 
   //! \brief Write universe information to an HDF5 group.
@@ -46,6 +46,11 @@ public:
   virtual GeometryType geom_type() const { return GeometryType::CSG; }
 
   unique_ptr<UniversePartitioner> partitioner_;
+
+  //! Thread-local storage for cell hits. The key is the universe index in
+  //! the universes array. The value is a vector of cell index - cell hit
+  //! frequency pairs.
+  static thread_local std::unordered_map<int32_t, std::vector<CellFrequencyItem>> tl_universe_cell_hits;
 };
 
 //==============================================================================
@@ -61,7 +66,11 @@ public:
   explicit UniversePartitioner(const Universe& univ);
 
   //! Return the list of cells that could contain the given coordinates.
-  vector<CellFrequencyItem>& get_cells(Position r, Direction u);
+  const vector<int32_t>& get_cells(Position r, Direction u) const;
+
+private:
+  //! A sorted vector of indices to surfaces that partition the universe
+  vector<int32_t> surfs_;
 
   //! Vectors listing the indices of the cells that lie within each partition
   //
@@ -70,11 +79,7 @@ public:
   //! `partitions_.back()` gives the cells that lie on the positive side of
   //! `surfs_.back()`.  Otherwise, `partitions_[i]` gives cells sandwiched
   //! between `surfs_[i-1]` and `surfs_[i]`.
-  vector<vector<CellFrequencyItem>> partitions_;
-
-private:
-  //! A sorted vector of indices to surfaces that partition the universe
-  vector<int32_t> surfs_;
+  vector<vector<int32_t>> partitions_;
 };
 
 } // namespace openmc
