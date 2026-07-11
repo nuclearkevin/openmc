@@ -117,6 +117,11 @@ int openmc_simulation_init()
     mat->init_nuclide_index();
   }
 
+  // Prepare thread-local cell hit lists for transport.
+  if (settings::sort_cells) {
+    init_tl_cell_hit_lists();
+  }
+
   // Reset global variables -- this is done before loading state point (as that
   // will potentially populate k_generation and entropy)
   simulation::current_batch = 0;
@@ -244,8 +249,10 @@ int openmc_simulation_finalize()
   if (settings::check_overlaps)
     print_overlap_check();
 
-  // Zero out the frequency counters in universe cell lists.
-  zero_cell_frequency();
+  // Zero out the hit counters in universe cell lists.
+  if (settings::sort_cells) {
+    clear_tl_cell_hit_lists();
+  }
 
   // Reset flags
   simulation::initialized = false;
@@ -299,7 +306,9 @@ int openmc_next_batch(int* status)
 
   // Sort cells so the cells which contain particles more often are
   // checked first during linear searches.
-  sort_cell_lists();
+  if (simulation::current_batch % settings::cell_sort_frequency == 0 && settings::sort_cells) {
+    sort_cell_lists();
+  }
 
   // Check simulation ending criteria
   if (status) {
@@ -540,38 +549,48 @@ void finalize_batch()
   }
 }
 
+void init_tl_cell_hit_lists()
+{
+  // Need to loop over threads ahead of the simulation to initialize thread-local storage
+  // for the frequency lists.
+#pragma omp parallel for schedule(static,1)
+  for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
+    for (int32_t i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
+      Universe::tl_universe_cell_hits.emplace(i_universe, std::vector<CellFrequencyItem>());
+      for (auto i_cell : model::universes[i_universe]->cells_) {
+        Universe::tl_universe_cell_hits.at(i_universe).push_back({i_cell, 0});
+      }
+    }
+  }
+}
+
 void sort_cell_lists()
 {
+  simulation::time_sorting_cells.start();
+
   auto compare = [](const CellFrequencyItem& a, const CellFrequencyItem& b) {
     return a.cell_freq_ > b.cell_freq_;
   };
 
   // Sort universe cell lists.
-#pragma omp parallel for
-  for (int i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
-    auto& uni = model::universes[i_universe];
-    if (uni->partitioner_) {
-      for (auto& part : uni->partitioner_->partitions_) {
-        std::sort(part.begin(), part.end(), compare);
-      }
-    } else {
-      std::sort(uni->cells_.begin(), uni->cells_.end(), compare);
+#pragma omp parallel for schedule(static,1)
+  for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
+    for (int i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
+      auto& cell_list = Universe::tl_universe_cell_hits.at(i_universe);
+      std::sort(cell_list.begin(), cell_list.end(), compare);
     }
   }
+
+  simulation::time_sorting_cells.stop();
 }
 
-void zero_cell_frequency()
+void clear_tl_cell_hit_lists()
 {
-  for (auto& uni : model::universes) {
-    if (uni->partitioner_) {
-      for (auto& part : uni->partitioner_->partitions_) {
-        for (auto& cell_data : part) {
-          cell_data.cell_freq_ = 0;
-        }
-      }
-    } else {
-      for (auto& cell_data : uni->cells_) {
-        cell_data.cell_freq_ = 0;
+#pragma omp parallel for schedule(static,1)
+  for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
+    for (int32_t i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
+      if (!model::universes[i_universe]->partitioner_) {
+        Universe::tl_universe_cell_hits.erase(i_universe);
       }
     }
   }

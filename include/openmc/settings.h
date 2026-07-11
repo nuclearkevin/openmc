@@ -82,6 +82,7 @@ extern "C" bool reduce_tallies;      //!< reduce tallies at end of batch?
 extern bool res_scat_on;             //!< use resonance upscattering method?
 extern "C" bool restart_run;         //!< restart run?
 extern "C" bool run_CE;              //!< run with continuous-energy data?
+extern bool sort_cells;              //!< sorting universe cell lists by number of hits?
 extern bool source_latest;           //!< write latest source at each batch?
 extern bool source_separate;         //!< write source to separate file?
 extern bool source_write;            //!< write source in HDF5 files?
@@ -134,6 +135,8 @@ extern "C" int32_t
                                   //!< to be written to files
 extern "C" int32_t gen_per_batch; //!< number of generations per batch
 extern "C" int64_t n_particles;   //!< number of particles per generation
+
+extern int32_t cell_sort_frequency; //!< how often cells should be sorted
 
 extern int64_t
   max_particles_in_flight;      //!< Max num. event-based particles in flight

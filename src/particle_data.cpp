@@ -63,8 +63,8 @@ void GeometryState::advance_to_boundary_from_void()
   const auto& root_universe = model::universes[model::root_universe];
   boundary().reset();
 
-  for (const auto& cell_data : root_universe->cells_) {
-    auto dist = model::cells.at(cell_data.i_cell_)
+  for (auto i_cell : root_universe->cells_) {
+    auto dist = model::cells.at(i_cell)
                   ->distance(root_coord.r(), root_coord.u(), 0, this);
     if (dist.first < boundary().distance()) {
       boundary().distance() = dist.first;
