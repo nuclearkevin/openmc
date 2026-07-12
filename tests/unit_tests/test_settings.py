@@ -101,6 +101,8 @@ def test_export_to_xml(run_in_tmpdir):
         'neutron_energy_threshold' : 5e3,
         'photon_energy_threshold' : 1e6
     }
+    s.cell_hit_sorting = True
+    s.cell_sort_interval = 5
 
     # Make sure exporting XML works
     s.export_to_xml()
@@ -202,6 +204,8 @@ def test_export_to_xml(run_in_tmpdir):
     assert s.delta_tracking['xs_threshold'] == 0.9
     assert s.delta_tracking['neutron_energy_threshold'] == 5e3
     assert s.delta_tracking['photon_energy_threshold'] == 1e6
+    assert s.cell_hit_sorting == True
+    assert s.cell_sort_interval == 5
 
 
 def test_properties_file_load(tmp_path, mpi_intracomm):
