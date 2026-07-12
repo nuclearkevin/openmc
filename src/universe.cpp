@@ -39,7 +39,7 @@ void Universe::to_hdf5(hid_t universes_group) const
   close_group(group);
 }
 
-bool Universe::find_cell(GeometryState& p)
+bool Universe::find_cell(GeometryState& p) const
 {
   Position r {p.r_local()};
   Position u {p.u_local()};
@@ -84,8 +84,8 @@ BoundingBox Universe::bounding_box() const
   if (cells_.size() == 0) {
     return {};
   } else {
-    for (auto i_cell : cells_) {
-      auto& c = model::cells[i_cell];
+    for (const auto& cell : cells_) {
+      auto& c = model::cells[cell];
       bbox |= c->bounding_box();
     }
   }

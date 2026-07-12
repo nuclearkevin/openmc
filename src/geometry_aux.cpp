@@ -147,9 +147,9 @@ void adjust_indices()
 
 void partition_universes()
 {
-  // For testing purposes, disable partitioners when sorting cells.
+  // Z-plane partitioning is not supported when running with cell sorting.
+  // It also tends to be faster to use cell sorting for flat universes.
   if (settings::sort_cells) {
-    write_message("Disabling universe z-plane partitioning as 'sort_cells_by_hits' = true");
     return;
   }
 
@@ -427,12 +427,12 @@ void prepare_distribcell(const std::vector<int32_t>* user_distribcells)
   // distribcell array index according to the containing universe.
   vector<int32_t> target_univ_ids;
   for (const auto& u : model::universes) {
-    for (auto i_cell : u->cells_) {
-      if (distribcells.find(i_cell) != distribcells.end()) {
+    for (auto idx : u->cells_) {
+      if (distribcells.find(idx) != distribcells.end()) {
         if (!contains(target_univ_ids, u->id_)) {
           target_univ_ids.push_back(u->id_);
         }
-        model::cells[i_cell]->distribcell_index_ =
+        model::cells[idx]->distribcell_index_ =
           std::find(target_univ_ids.begin(), target_univ_ids.end(), u->id_) -
           target_univ_ids.begin();
       }
@@ -457,8 +457,8 @@ void prepare_distribcell(const std::vector<int32_t>* user_distribcells)
     std::unordered_map<int32_t, int32_t> univ_count_memo;
     for (const auto& univ : model::universes) {
       int32_t offset = 0;
-      for (auto i_cell : univ->cells_) {
-        Cell& c = *model::cells[i_cell];
+      for (int32_t cell_indx : univ->cells_) {
+        Cell& c = *model::cells[cell_indx];
 
         if (c.type_ == Fill::UNIVERSE) {
           c.offset_[map] = offset;
@@ -504,8 +504,8 @@ int count_universe_instances(int32_t search_univ, int32_t target_univ_id,
   }
 
   int count {0};
-  for (auto i_cell : model::universes[search_univ]->cells_) {
-    Cell& c = *model::cells[i_cell];
+  for (int32_t cell_indx : model::universes[search_univ]->cells_) {
+    Cell& c = *model::cells[cell_indx];
 
     if (c.type_ == Fill::UNIVERSE) {
       int32_t next_univ = c.fill_;
@@ -539,9 +539,9 @@ std::string distribcell_path_inner(int32_t target_cell, int32_t map,
 
   // Check to see if this universe directly contains the target cell.  If so,
   // write to the path and return.
-  for (auto i_cell : search_univ.cells_) {
-    if ((i_cell == target_cell) && (offset == target_offset)) {
-      Cell& c = *model::cells[i_cell];
+  for (int32_t cell_indx : search_univ.cells_) {
+    if ((cell_indx == target_cell) && (offset == target_offset)) {
+      Cell& c = *model::cells[cell_indx];
       path << "c" << c.id_;
       return path.str();
     }
@@ -550,7 +550,7 @@ std::string distribcell_path_inner(int32_t target_cell, int32_t map,
   // The target must be further down the geometry tree and contained in a fill
   // cell or lattice cell in this universe.  Find which cell contains the
   // target.
-  vector<int32_t>::const_reverse_iterator cell_it {
+  vector<std::int32_t>::const_reverse_iterator cell_it {
     search_univ.cells_.crbegin()};
   for (; cell_it != search_univ.cells_.crend(); ++cell_it) {
     Cell& c = *model::cells[*cell_it];
@@ -628,8 +628,8 @@ int maximum_levels(int32_t univ)
 
   int levels_below {0};
 
-  for (auto i_cell : model::universes[univ]->cells_) {
-    Cell& c = *model::cells[i_cell];
+  for (int32_t cell_indx : model::universes[univ]->cells_) {
+    Cell& c = *model::cells[cell_indx];
     if (c.type_ == Fill::UNIVERSE) {
       int32_t next_univ = c.fill_;
       levels_below = std::max(levels_below, maximum_levels(next_univ));

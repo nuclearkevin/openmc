@@ -258,7 +258,7 @@ int openmc_simulation_finalize()
   // Clear majorants as they could change if OpenMC is run again.
   reset_majorants();
 
-  // Zero out the hit counters in universe cell lists.
+  // Clear the thread-local cell hit lists.
   if (settings::sort_cells) {
     clear_tl_cell_hit_lists();
   }
@@ -575,13 +575,12 @@ void init_tl_cell_hit_lists()
 
 void sort_cell_lists()
 {
-  simulation::time_sorting_cells.start();
-
   auto compare = [](const CellFrequencyItem& a, const CellFrequencyItem& b) {
     return a.cell_freq_ > b.cell_freq_;
   };
 
-  // Sort universe cell lists.
+  // Sort universe cell lists. Sorting per-thread was found to be faster than
+  // reducing all hits, sorting on the main thread, and applying the results.
 #pragma omp parallel for schedule(static,1)
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
     for (int i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
@@ -589,8 +588,6 @@ void sort_cell_lists()
       std::sort(cell_list.begin(), cell_list.end(), compare);
     }
   }
-
-  simulation::time_sorting_cells.stop();
 }
 
 void clear_tl_cell_hit_lists()
