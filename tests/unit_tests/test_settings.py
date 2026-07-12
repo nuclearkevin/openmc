@@ -94,6 +94,8 @@ def test_export_to_xml(run_in_tmpdir):
     s.max_secondaries = 1_000_000
     s.source_rejection_fraction = 0.01
     s.free_gas_threshold = 800.0
+    s.cell_hit_sorting = True
+    s.cell_sort_interval = 5
 
     # Make sure exporting XML works
     s.export_to_xml()
@@ -190,6 +192,8 @@ def test_export_to_xml(run_in_tmpdir):
     assert s.max_secondaries == 1_000_000
     assert s.source_rejection_fraction == 0.01
     assert s.free_gas_threshold == 800.0
+    assert s.cell_hit_sorting == True
+    assert s.cell_sort_interval == 5
 
 
 def test_properties_file_load(tmp_path, mpi_intracomm):
