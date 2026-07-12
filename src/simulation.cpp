@@ -306,7 +306,8 @@ int openmc_next_batch(int* status)
 
   // Sort cells so the cells which contain particles more often are
   // checked first during linear searches.
-  if (simulation::current_batch % settings::cell_sort_frequency == 0 && settings::sort_cells) {
+  if (simulation::current_batch % settings::cell_sort_frequency == 0 &&
+      settings::sort_cells) {
     sort_cell_lists();
   }
 
@@ -551,12 +552,14 @@ void finalize_batch()
 
 void init_tl_cell_hit_lists()
 {
-  // Need to loop over threads ahead of the simulation to initialize thread-local storage
-  // for the frequency lists.
-#pragma omp parallel for schedule(static,1)
+  // Need to loop over threads ahead of the simulation to initialize
+  // thread-local storage for the frequency lists.
+#pragma omp parallel for schedule(static, 1)
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
-    for (int32_t i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
-      Universe::tl_universe_cell_hits.emplace(i_universe, std::vector<CellFrequencyItem>());
+    for (int32_t i_universe = 0; i_universe < model::universes.size();
+         ++i_universe) {
+      Universe::tl_universe_cell_hits.emplace(
+        i_universe, std::vector<CellFrequencyItem>());
       for (auto i_cell : model::universes[i_universe]->cells_) {
         Universe::tl_universe_cell_hits.at(i_universe).push_back({i_cell, 0});
       }
@@ -572,9 +575,10 @@ void sort_cell_lists()
 
   // Sort universe cell lists. Sorting per-thread was found to be faster than
   // reducing all hits, sorting on the main thread, and applying the results.
-#pragma omp parallel for schedule(static,1)
+#pragma omp parallel for schedule(static, 1)
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
-    for (int i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
+    for (int i_universe = 0; i_universe < model::universes.size();
+         ++i_universe) {
       auto& cell_list = Universe::tl_universe_cell_hits.at(i_universe);
       std::sort(cell_list.begin(), cell_list.end(), compare);
     }
@@ -583,9 +587,10 @@ void sort_cell_lists()
 
 void clear_tl_cell_hit_lists()
 {
-#pragma omp parallel for schedule(static,1)
+#pragma omp parallel for schedule(static, 1)
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
-    for (int32_t i_universe = 0; i_universe < model::universes.size(); ++i_universe) {
+    for (int32_t i_universe = 0; i_universe < model::universes.size();
+         ++i_universe) {
       if (!model::universes[i_universe]->partitioner_) {
         Universe::tl_universe_cell_hits.erase(i_universe);
       }

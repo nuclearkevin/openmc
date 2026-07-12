@@ -18,7 +18,8 @@ vector<unique_ptr<Universe>> universes;
 // Universe implementation
 //==============================================================================
 
-thread_local std::unordered_map<int32_t, std::vector<CellFrequencyItem>> Universe::tl_universe_cell_hits;
+thread_local std::unordered_map<int32_t, std::vector<CellFrequencyItem>>
+  Universe::tl_universe_cell_hits;
 
 void Universe::to_hdf5(hid_t universes_group) const
 {
@@ -61,8 +62,9 @@ bool Universe::find_cell(GeometryState& p) const
       }
     }
   } else {
-    const auto& cells {
-      !partitioner_ ? cells_ : partitioner_->get_cells(p.r_local(), p.u_local())};
+    const auto& cells {!partitioner_
+                         ? cells_
+                         : partitioner_->get_cells(p.r_local(), p.u_local())};
 
     for (auto i_cell : cells) {
       if (model::cells[i_cell]->universe_ != i_univ)
