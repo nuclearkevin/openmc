@@ -147,7 +147,7 @@ extern double hybrid_xs_threshold; //!< the cross section threshold for standard
 extern array<double, 4> hybrid_energy_threshold; //!< the energy threshold for
                                                  //!< hybrid-in-energy tracking
 
-extern int32_t cell_sort_frequency; //!< how often cells should be sorted
+extern int32_t cell_sort_interval; //!< how often cells should be sorted
 
 extern int64_t
   max_particles_in_flight;      //!< Max num. event-based particles in flight

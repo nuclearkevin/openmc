@@ -122,7 +122,7 @@ double hybrid_xs_threshold {0.9};
 // the pair-production cross section.
 array<double, 4> hybrid_energy_threshold {50e3, 1e6, 0.0, 0.0};
 
-int32_t cell_sort_frequency {10};
+int32_t cell_sort_interval {10};
 
 int64_t max_particles_in_flight {100000};
 int max_particle_events {1000000};
@@ -1448,13 +1448,12 @@ void read_settings_xml(pugi::xml_node root)
   }
 
   // Check for cell sorting parameters.
-  if (check_for_node(root, "sort_cells_by_hits")) {
-    sort_cells = get_node_value_bool(root, "sort_cells_by_hits");
+  if (check_for_node(root, "cell_hit_sorting")) {
+    sort_cells = get_node_value_bool(root, "cell_hit_sorting");
   }
 
-  if (sort_cells && check_for_node(root, "cell_sort_frequency")) {
-    cell_sort_frequency =
-      std::stoi(get_node_value(root, "cell_sort_frequency"));
+  if (sort_cells && check_for_node(root, "cell_sort_interval")) {
+    cell_sort_interval = std::stoi(get_node_value(root, "cell_sort_interval"));
   }
 }
 

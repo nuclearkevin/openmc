@@ -47,6 +47,20 @@ class Settings:
         interactions.
     batches : int
         Number of batches to simulate
+    cell_hit_sorting : bool
+        If True, cell hit sorting will be used to re-order universes cell lists
+        such that cells found to contain particles more often will be checked
+        first. This defaults universe z-plane partitioning. By default, OpenMC
+        uses cell sorting as it was found to be more efficient than z-plane
+        partitioning for very unstructured flat geometries.
+
+        .. versionadded:: 0.15.4
+    cell_sort_interval : int
+        How often (in terms of batches) universe cell lists should be sorted
+        when 'cell_hit_sorting' = True. By default, OpenMC uses an interval of
+        10. The larger the interval, the less frequently cell lists are sorted.
+
+        .. versionadded:: 0.15.4
     confidence_intervals : bool
         If True, uncertainties on tally results will be reported as the
         half-width of the 95% two-sided confidence interval. If False,
@@ -532,6 +546,10 @@ class Settings:
         self._use_decay_photons = None
 
         self._random_ray = {}
+
+        # Cell sorting
+        self._cell_hit_sorting = None
+        self._cell_sort_interval = None
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -1553,6 +1571,27 @@ class Settings:
             cv.check_greater_than('free gas threshold', free_gas_threshold, 0.0)
         self._free_gas_threshold = free_gas_threshold
 
+    @property
+    def cell_hit_sorting(self) -> bool | None:
+        return self._cell_hit_sorting
+
+    @cell_hit_sorting.setter
+    def cell_hit_sorting(self, cell_hit_sorting: bool | None):
+        if cell_hit_sorting is not None:
+            cv.check_type('cell hit sorting', cell_hit_sorting, bool)
+        self._cell_hit_sorting = cell_hit_sorting
+
+    @property
+    def cell_sort_interval(self) -> int | None:
+        return self._cell_sort_interval
+
+    @cell_sort_interval.setter
+    def cell_sort_interval(self, cell_sort_interval: int | None):
+        if cell_sort_interval != None:
+            cv.check_type('cell hit sorting interval', cell_sort_interval, int)
+            cv.check_greater_than('cell hit sorting interval', cell_sort_interval, 0)
+        self._cell_sort_interval = cell_sort_interval
+
     def _create_run_mode_subelement(self, root):
         elem = ET.SubElement(root, "run_mode")
         elem.text = self._run_mode.value
@@ -2134,6 +2173,16 @@ class Settings:
                     subelement = ET.SubElement(element, key)
                     subelement.text = str(value)
 
+    def _create_cell_sort_subelement(self, root):
+        if self._cell_hit_sorting != None:
+            elem = ET.SubElement(root, "cell_hit_sorting")
+            elem.text = str(self._cell_hit_sorting)
+
+    def _create_cell_sort_interval_subelement(self, root):
+        if self._cell_sort_interval != None:
+            elem = ET.SubElement(root, "cell_sort_interval")
+            elem.text = str(self._cell_sort_interval)
+
     def _eigenvalue_from_xml_element(self, root):
         elem = root.find('eigenvalue')
         if elem is not None:
@@ -2647,6 +2696,16 @@ class Settings:
                     data[child.tag] = child.text
             self.delta_tracking = data
 
+    def _cell_sort_from_xml_element(self, root):
+        text = get_text(root, 'cell_hit_sorting')
+        if text is not None:
+            self.cell_hit_sorting = bool(text)
+
+    def _cell_sort_interval_from_xml_element(self, root):
+        text = get_text(root, 'cell_sort_interval')
+        if text is not None:
+            self.cell_sort_interval = int(text)
+
     def to_xml_element(self, mesh_memo=None):
         """Create a 'settings' element to be written to an XML file.
 
@@ -2725,6 +2784,8 @@ class Settings:
         self._create_source_rejection_fraction_subelement(element)
         self._create_free_gas_threshold_subelement(element)
         self._create_delta_tracking_subelement(element)
+        self._create_cell_sort_subelement(element)
+        self._create_cell_sort_interval_subelement(element)
 
         # Clean the indentation in the file to be user-readable
         clean_indentation(element)
@@ -2844,6 +2905,8 @@ class Settings:
         settings._source_rejection_fraction_from_xml_element(elem)
         settings._free_gas_threshold_from_xml_element(elem)
         settings._delta_tracking_from_xml_element(elem)
+        settings._cell_sort_from_xml_element(elem)
+        settings._cell_sort_interval_from_xml_element(elem)
 
         return settings
 
