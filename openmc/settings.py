@@ -50,7 +50,7 @@ class Settings:
     cell_hit_sorting : bool
         If True, cell hit sorting will be used to re-order universes cell lists
         such that cells found to contain particles more often will be checked
-        first. This defaults universe z-plane partitioning. By default, OpenMC
+        first. This disables universe z-plane partitioning. By default, OpenMC
         uses cell sorting as it was found to be more efficient than z-plane
         partitioning for very unstructured flat geometries.
 
