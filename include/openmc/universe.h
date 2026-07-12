@@ -50,7 +50,9 @@ public:
   //! Thread-local storage for cell hits. The key is the universe index in
   //! the universes array. The value is a vector of cell index - cell hit
   //! frequency pairs.
-  static thread_local std::unordered_map<int32_t, std::vector<CellFrequencyItem>> tl_universe_cell_hits;
+  static thread_local std::unordered_map<int32_t,
+    std::vector<CellFrequencyItem>>
+    tl_universe_cell_hits;
 };
 
 //==============================================================================

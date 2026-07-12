@@ -1453,7 +1453,8 @@ void read_settings_xml(pugi::xml_node root)
   }
 
   if (sort_cells && check_for_node(root, "cell_sort_frequency")) {
-    cell_sort_frequency = std::stoi(get_node_value(root, "cell_sort_frequency"));
+    cell_sort_frequency =
+      std::stoi(get_node_value(root, "cell_sort_frequency"));
   }
 }
 
