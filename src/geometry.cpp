@@ -48,12 +48,12 @@ int check_cell_overlap(GeometryState& p, bool error)
     Universe& univ = *model::universes[p.coord(j).universe()];
 
     // Loop through each cell on this level
-    for (auto i_cell : univ.cells_) {
-      Cell& c = *model::cells[i_cell];
+    for (auto index_cell : univ.cells_) {
+      Cell& c = *model::cells[index_cell];
       if (c.contains(p.coord(j).r(), p.coord(j).u(), p.surface())) {
 #pragma omp atomic
-        ++model::overlap_check_count[i_cell];
-        if (i_cell != p.coord(j).cell()) {
+        ++model::overlap_check_count[index_cell];
+        if (index_cell != p.coord(j).cell()) {
           if (error) {
             fatal_error(
               fmt::format("Overlapping cells detected: {}, {} on universe {}",
@@ -62,7 +62,7 @@ int check_cell_overlap(GeometryState& p, bool error)
 
           // With no fatal error (plotter is calling), now adds overlaps and
           // ensures order does not matter when making overlap key
-          int cell_a = model::cells[i_cell]->id_;
+          int cell_a = model::cells[index_cell]->id_;
           int cell_b = model::cells[p.coord(j).cell()]->id_;
           int a = std::min(cell_a, cell_b);
           int b = std::max(cell_a, cell_b);

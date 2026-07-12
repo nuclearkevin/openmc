@@ -84,14 +84,15 @@ void initialize_particle_track(
 //! appropriate
 void finalize_batch();
 
-//! Initialize thread local cell hit lists. These are used to accumulate
+//! Initialize thread local cell hit lists. These are used to accumulate how often
+//! a cell has been found to contain a particle.
 void init_tl_cell_hit_lists();
 
-//! Sort universe cell lists based on how often a particle is contained in the
-//! cell.
+//! Sort thread local universe cell lists based on how often a particle is contained
+//!in the cell.
 void sort_cell_lists();
 
-//! Zero universe cell list frequency counters.
+//! Clear thread local universe cell hit lists.
 void clear_tl_cell_hit_lists();
 
 //! Finalize a fission generation

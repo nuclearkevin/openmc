@@ -1702,8 +1702,8 @@ void Cell::get_contained_cells_inner(
   } else if (type_ == Fill::UNIVERSE) {
     parent_cells.push_back({model::cell_map[id_], -1});
     auto& univ = model::universes[fill_];
-    for (auto i_cell : univ->cells_) {
-      auto& cell = model::cells[i_cell];
+    for (auto cell_index : univ->cells_) {
+      auto& cell = model::cells[cell_index];
       cell->get_contained_cells_inner(contained_cells, parent_cells);
     }
     parent_cells.pop_back();
@@ -1714,8 +1714,8 @@ void Cell::get_contained_cells_inner(
     for (auto i = lattice->begin(); i != lattice->end(); ++i) {
       auto& univ = model::universes[*i];
       parent_cells.push_back({model::cell_map[id_], i.indx_});
-      for (auto i_cell : univ->cells_) {
-        auto& cell = model::cells[i_cell];
+      for (auto cell_index : univ->cells_) {
+        auto& cell = model::cells[cell_index];
         cell->get_contained_cells_inner(contained_cells, parent_cells);
       }
       parent_cells.pop_back();
