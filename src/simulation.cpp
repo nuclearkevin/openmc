@@ -306,8 +306,8 @@ int openmc_next_batch(int* status)
 
   // Sort cells so the cells which contain particles more often are
   // checked first during linear searches.
-  if (simulation::current_batch % settings::cell_sort_frequency == 0 &&
-      settings::sort_cells) {
+  if (settings::sort_cells &&
+      simulation::current_batch % settings::cell_sort_interval == 0) {
     sort_cell_lists();
   }
 
