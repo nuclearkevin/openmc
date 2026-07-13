@@ -51,8 +51,9 @@ class Settings:
         If True, cell hit sorting will be used to re-order universes cell lists
         such that cells found to contain particles more often will be checked
         first. This disables universe z-plane partitioning. By default, OpenMC
-        uses cell sorting as it was found to be more efficient than z-plane
-        partitioning for very unstructured flat geometries.
+        disables cell hit sorting as most hierarchical CSG models don't benefit
+        from this optimization. If your geometry is flat (many cells in
+        universes), it is recommended that you set this to True.
 
         .. versionadded:: 0.15.4
     cell_sort_interval : int
