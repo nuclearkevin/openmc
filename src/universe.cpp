@@ -18,8 +18,7 @@ vector<unique_ptr<Universe>> universes;
 // Universe implementation
 //==============================================================================
 
-thread_local std::unordered_map<int32_t, std::vector<CellFrequencyItem>>
-  Universe::tl_universe_cell_hits;
+thread_local vector<vector<CellFrequencyItem>> Universe::tl_universe_cell_hits_;
 
 void Universe::to_hdf5(hid_t universes_group) const
 {
@@ -49,14 +48,15 @@ bool Universe::find_cell(GeometryState& p) const
 
   if (settings::sort_cells) {
     // Cell sorting disables the partitioner, no need to check it.
-    for (auto& cell_data : tl_universe_cell_hits[i_univ]) {
+    for (auto& cell_data : tl_universe_cell_hits_[i_univ]) {
       if (model::cells[cell_data.i_cell_]->universe_ != i_univ)
         continue;
       // Check if this cell contains the particle
       if (model::cells[cell_data.i_cell_]->contains(r, u, surf)) {
         p.lowest_coord().cell() = cell_data.i_cell_;
         // Accumulate the number of hits on the cell to enable frequency-based
-        // sorting.
+        // sorting. This is thread safe as tl_universe_cell_hits_ is marked as
+        // thread_local.
         cell_data.cell_freq_++;
         return true;
       }

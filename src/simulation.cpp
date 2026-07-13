@@ -558,10 +558,9 @@ void init_tl_cell_hit_lists()
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
     for (int32_t i_universe = 0; i_universe < model::universes.size();
          ++i_universe) {
-      Universe::tl_universe_cell_hits.emplace(
-        i_universe, std::vector<CellFrequencyItem>());
+      Universe::tl_universe_cell_hits_.emplace_back();
       for (auto i_cell : model::universes[i_universe]->cells_) {
-        Universe::tl_universe_cell_hits.at(i_universe).push_back({i_cell, 0});
+        Universe::tl_universe_cell_hits_.back().push_back({i_cell, 0});
       }
     }
   }
@@ -579,7 +578,7 @@ void sort_cell_lists()
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
     for (int i_universe = 0; i_universe < model::universes.size();
          ++i_universe) {
-      auto& cell_list = Universe::tl_universe_cell_hits.at(i_universe);
+      auto& cell_list = Universe::tl_universe_cell_hits_[i_universe];
       std::sort(cell_list.begin(), cell_list.end(), compare);
     }
   }
@@ -589,12 +588,7 @@ void clear_tl_cell_hit_lists()
 {
 #pragma omp parallel for schedule(static, 1)
   for (int32_t i_thread = 0; i_thread < num_threads(); ++i_thread) {
-    for (int32_t i_universe = 0; i_universe < model::universes.size();
-         ++i_universe) {
-      if (!model::universes[i_universe]->partitioner_) {
-        Universe::tl_universe_cell_hits.erase(i_universe);
-      }
-    }
+    Universe::tl_universe_cell_hits_.clear();
   }
 }
 
