@@ -1,11 +1,13 @@
 import openmc
 import openmc.model
+from openmc.utility_funcs import change_directory
+import pytest
 
 from tests.testing_harness import PyAPITestHarness
 
 
 class TRISOTestHarness(PyAPITestHarness):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, sorting_cells, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Define TRISO matrials
         fuel = openmc.Material()
@@ -83,11 +85,21 @@ class TRISOTestHarness(PyAPITestHarness):
         settings.particles = 100
         settings.source = openmc.IndependentSource(space=openmc.stats.Point())
         self._model.settings = settings
+        if sorting_cells:
+            self._model.settings.cell_hit_sorting = sorting_cells
+            self._model.settings.cell_sort_interval = 5
 
         self._model.materials = openmc.Materials([fuel, porous_carbon, ipyc,
                                                   sic, opyc, graphite])
 
 
-def test_triso():
-    harness = TRISOTestHarness('statepoint.4.h5', model=openmc.Model())
-    harness.main()
+@pytest.mark.parametrize("sorting_cells", [False, True])
+def test_triso(sorting_cells):
+    openmc.reset_auto_ids()
+    if sorting_cells == True:
+        with change_directory("cell_sorting"):
+            harness = TRISOTestHarness(True, 'statepoint.4.h5', model=openmc.Model())
+            harness.main()
+    else:
+        harness = TRISOTestHarness(False, 'statepoint.4.h5', model=openmc.Model())
+        harness.main()
