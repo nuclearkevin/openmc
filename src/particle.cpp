@@ -194,6 +194,14 @@ void Particle::from_source(const SourceSite* src)
   wgt_ww_born() = src->wgt_ww_born;
   n_split() = src->n_split;
 
+  // Revive with delta tracking turned on unless this is an
+  // electron or positron.
+  delta_tracking() = settings::delta_tracking;
+  if (type() == ParticleType::electron() || type() == ParticleType::positron()) {
+    delta_tracking() = false;
+  }
+
+  // Need to keep the majorant in synch.
   if (settings::delta_tracking) {
     update_majorant();
   }
@@ -607,9 +615,6 @@ void Particle::event_check_limit_and_revive()
   // In non-shared-secondary mode, revive from local secondary bank
   if (!alive() && !settings::use_shared_secondary_bank &&
       !local_secondary_bank().empty()) {
-    // Revive with delta tracking turned on.
-    delta_tracking() = settings::delta_tracking;
-
     SourceSite& site = local_secondary_bank().back();
     event_revive_from_secondary(site);
     local_secondary_bank().pop_back();
@@ -974,6 +979,13 @@ bool Particle::kill_invalid_maj()
 
 void Particle::update_tracking_type()
 {
+  // Force surface tracking for electrons / positrons.
+  if (type() == ParticleType::electron()
+      || type() == ParticleType::positron()) {
+    delta_tracking() = false;
+    return;
+  }
+
   switch (settings::hybrid_delta_type) {
     case HybridTrackingType::CrossSection:
     {
@@ -992,7 +1004,7 @@ void Particle::update_tracking_type()
     {
       // Switch between tracking types based on energy. See
       // Section 3.3 of https://doi.org/10.1080/23324309.2026.2618791
-      if (alive() && E() >= settings::hybrid_energy_threshold) {
+      if (alive() && E() >= settings::hybrid_energy_threshold[type().transport_index()]) {
         delta_tracking() = true;
       } else if (alive()) {
         delta_tracking() = false;

@@ -917,43 +917,35 @@ void transport_delta_history_based_single_particle(Particle& p)
       p.event_delta_advance();
     }
 
-    if (p.alive()) {
-      // Electrons and positrons collide in-place, no need to rejection sample.
-      if (p.type() == ParticleType::electron() ||
-          p.type() == ParticleType::positron()) {
-        p.event_collide();
+    if (p.alive() && p.collision_distance() < p.boundary().distance()) {
+      // Cross sections are required if running delta tracking.
+      if (p.delta_tracking()) {
+        p.event_calculate_xs();
       }
 
-      if (p.alive() && p.collision_distance() < p.boundary().distance()) {
-        // Cross sections are required if running delta tracking.
-        if (p.delta_tracking()) {
-          p.event_calculate_xs();
+      // In the case the particle is flagged for delta tracking AND it collided
+      // before hitting an external boundary, we rejection sample the majorant.
+      // Otherwise we accept the collision as surface tracking is being used.
+      if (p.alive() && p.delta_tracking()) {
+        // Check to ensure the majorant is valid.
+        if (p.kill_invalid_maj()) {
+          break;
         }
-
-        // In the case the particle is flagged for delta tracking AND it collided
-        // before hitting an external boundary, we rejection sample the majorant.
-        // Otherwise we accept the collision as surface tracking is being used.
-        if (p.alive() && p.delta_tracking()) {
-          // Check to ensure the majorant is valid.
-          if (p.kill_invalid_maj()) {
-            break;
-          }
-          // Perform rejection sampling if running delta tracking.
-          if (prn(p.current_seed()) < (p.macro_xs().total / p.majorant())) {
-            p.event_collide();
-          }
-        } else if (p.alive()) {
-          // Accept all collisions if running surface tracking.
+        // Perform rejection sampling if running delta tracking.
+        if (prn(p.current_seed()) < (p.macro_xs().total / p.majorant())) {
           p.event_collide();
         }
-        // Update the tracking type based on the chosen hybrid scheme.
-        p.update_tracking_type();
       } else if (p.alive()) {
-        // Crossed a boundary before colliding. This is either an external
-        // boundary if running with delta tracking, or a normal surface if
-        // running with surface tracking.
-        p.event_cross_surface();
+        // Accept all collisions if running surface tracking.
+        p.event_collide();
       }
+      // Update the tracking type based on the chosen hybrid scheme.
+      p.update_tracking_type();
+    } else if (p.alive()) {
+      // Crossed a boundary before colliding. This is either an external
+      // boundary if running with delta tracking, or a normal surface if
+      // running with surface tracking.
+      p.event_cross_surface();
     }
     p.event_check_limit_and_revive();
   }

@@ -382,27 +382,21 @@ void process_delta_collision_events()
     int64_t buffer_idx = simulation::collision_queue[i].idx;
     Particle& p = simulation::particles[buffer_idx];
 
-    // Electrons/positrons collide in place. Otherwise, we need to
-    // process either a delta tracking collision, or surface tracking
-    // collision.
-    if (p.type() == ParticleType::electron() ||
-        p.type() == ParticleType::positron()) {
-      p.event_collide();
-    } else {
-      if (p.delta_tracking()) {
-        // Check to ensure the majorant is valid.
-        if (p.kill_invalid_maj()) {
-          continue;
-        }
+    // We need to process either a delta tracking collision, or
+    // surface tracking collision.
+    if (p.delta_tracking()) {
+      // Check to ensure the majorant is valid.
+      if (p.kill_invalid_maj()) {
+        continue;
+      }
 
-        // Perform rejection sampling. If this is true, a real collision is
-        // processed prior to going back to majorant calculations.
-        if (prn(p.current_seed()) < (p.macro_xs().total / p.majorant())) {
-          p.event_collide();
-        }
-      } else {
+      // Perform rejection sampling. If this is true, a real collision is
+      // processed prior to going back to majorant calculations.
+      if (prn(p.current_seed()) < (p.macro_xs().total / p.majorant())) {
         p.event_collide();
       }
+    } else {
+      p.event_collide();
     }
 
     // Update the tracking type based on the chosen hybrid scheme.
