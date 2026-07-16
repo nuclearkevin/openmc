@@ -7,7 +7,7 @@ import openmc
 PINCELL_PITCH = 1.26 # cm
 
 def delta_tracking_lattice(
-    hybrid_threshold: float,
+    delta_tracking_settings: dict,
     run_photon: bool = False,
     boundary_type: str = 'reflective',
     densities: list[float] | None = None) -> openmc.Model:
@@ -99,8 +99,7 @@ def delta_tracking_lattice(
     model.settings.batches = 10
     model.settings.inactive = 5
     model.settings.particles = 1000
-    model.settings.delta_tracking = True
-    model.settings.delta_tracking_threshold = hybrid_threshold
+    model.settings.delta_tracking = delta_tracking_settings
     model.settings.photon_transport = run_photon
 
     return model
