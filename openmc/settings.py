@@ -2645,7 +2645,7 @@ class Settings:
                     data[child.tag] = float(child.text)
                 elif child.tag == 'hybrid_type':
                     data[child.tag] = child.text
-        self.delta_tracking = data
+            self.delta_tracking = data
 
     def to_xml_element(self, mesh_memo=None):
         """Create a 'settings' element to be written to an XML file.
