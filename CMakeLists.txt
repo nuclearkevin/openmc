@@ -468,6 +468,7 @@ list(APPEND libopenmc_SOURCES
   src/timer.cpp
   src/track_output.cpp
   src/universe.cpp
+  src/zplane_partitioner.cpp
   src/urr.cpp
   src/volume_calc.cpp
   src/weight_windows.cpp
