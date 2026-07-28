@@ -194,15 +194,33 @@ void Particle::from_source(const SourceSite* src)
   wgt_ww_born() = src->wgt_ww_born;
   n_split() = src->n_split;
 
-  // Revive with delta tracking turned on unless this is an
-  // electron or positron.
-  delta_tracking() = settings::delta_tracking;
-  if (type() == ParticleType::electron() || type() == ParticleType::positron()) {
-    delta_tracking() = false;
-  }
-
-  // Need to keep the majorant in synch.
+  // Revive with delta tracking turned on in most scenarios. There are a few
+  // exceptions:
+  // i)   If hybrid-in-cross-section tracking is being used and the threshold is
+  //      0. This ensures the particle tracks and RNG stream fully mimic surface
+  //      tracking.
+  // ii)  The particle type is an electron or positron. Then, they should
+  //      revive with surface tracking turned on to make sure they pass through
+  //      void regions.
+  // iii) The birth energy is below the hybrid-in-energy cuttoff for the
+  // particle.
   if (settings::delta_tracking) {
+    // i)
+    const bool disable_i =
+      settings::hybrid_delta_type == HybridTrackingType::CrossSection &&
+      settings::hybrid_xs_threshold == 0.0;
+
+    // ii)
+    const bool disable_ii =
+      type() == ParticleType::electron() || type() == ParticleType::positron();
+
+    // iii)
+    const bool disable_iii =
+      E() < settings::hybrid_energy_threshold[type().transport_index()];
+
+    delta_tracking() = !(disable_i || disable_ii || disable_iii);
+
+    // Need to keep the majorant in synch.
     update_majorant();
   }
 }
