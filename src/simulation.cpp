@@ -749,12 +749,6 @@ void initialize_particle_track(
     write_message("Simulating Particle {}", p.id());
   }
 
-  // Compute the majorant and set the delta tracking flag.
-  if (settings::delta_tracking) {
-    p.delta_tracking() = true;
-    p.update_majorant();
-  }
-
   // Add particle's starting weight to count for normalizing tallies later
   if (!is_secondary) {
 #pragma omp atomic
