@@ -37,6 +37,7 @@ double FlatSourceDomain::diagonal_stabilization_rho_ {1.0};
 std::unordered_map<int, vector<std::pair<Source::DomainType, int>>>
   FlatSourceDomain::mesh_domain_map_;
 std::vector<size_t> FlatSourceDomain::fw_cadis_local_targets_;
+bool FlatSourceDomain::use_dynamic_temp_treatment_ {false};
 
 FlatSourceDomain::FlatSourceDomain() : negroups_(data::mg.num_energy_groups_)
 {
@@ -77,6 +78,98 @@ FlatSourceDomain::FlatSourceDomain() : negroups_(data::mg.num_energy_groups_)
   SpatialBox* sb = dynamic_cast<SpatialBox*>(space_dist);
   Position dims = sb->upper_right() - sb->lower_left();
   simulation_volume_ = dims.x * dims.y * dims.z;
+}
+
+double FlatSourceDomain::temp_interpolate_xs(
+  const vector<double>& sigma, SourceRegionHandle& srh, int g) const
+{
+  const int mat = srh.material();
+  if (use_dynamic_temp_treatment_) {
+    // Execute the callback to fetch temperature data from a multiphysics
+    // application.
+    const double kT =
+      FlatSourceDomain::dynamic_temp_callback_(srh.position()) * K_BOLTZMANN;
+
+    // Clamp to lower bound.
+    if (kT <= temperature_points_[mat * ntemperature_]) {
+      return sigma[(mat * ntemperature_) * negroups_ + g];
+    }
+
+    for (int temp_idx = 1; temp_idx < ntemperature_; ++temp_idx) {
+      const int i_temp_l = mat * ntemperature_ + temp_idx - 1;
+      const int i_temp_u = mat * ntemperature_ + temp_idx;
+
+      // Find the upper datapoint (if it exists).
+      if (kT <= temperature_points_[i_temp_u]) {
+        const double& xs_lower = sigma[i_temp_l * negroups_ + g];
+        const double& temp_lower = temperature_points_[i_temp_l];
+        const double& xs_upper = sigma[i_temp_u * negroups_ + g];
+        const double& temp_upper = temperature_points_[i_temp_u];
+
+        return xs_lower +
+               (kT - temp_lower) / (temp_upper - temp_lower) * xs_upper;
+      }
+
+      // Clamp to the upper bound once we detect it.
+      if (temperature_points_[i_temp_u] == -1.0) {
+        return sigma[i_temp_l * negroups_ + g];
+      }
+    }
+
+    // Should never get here.
+    return 0.0;
+  } else {
+    return sigma[(mat * ntemperature_ + srh.temperature_idx()) * negroups_ + g];
+  }
+}
+
+double FlatSourceDomain::temp_interpolate_scatter_xs(
+  const vector<double>& sigma_s, SourceRegionHandle& srh, int g_in,
+  int g_out) const
+{
+  const int ng2 = negroups_ * negroups_;
+  const int mat = srh.material();
+
+  if (use_dynamic_temp_treatment_) {
+    // Execute the callback to fetch temperature data from a multiphysics
+    // application.
+    const double kT =
+      FlatSourceDomain::dynamic_temp_callback_(srh.position()) * K_BOLTZMANN;
+
+    // Clamp to lower bound.
+    if (kT <= temperature_points_[mat * ntemperature_]) {
+      return sigma_s[(mat * ntemperature_) * ng2 + g_out * negroups_ + g_in];
+    }
+
+    for (int temp_idx = 1; temp_idx < ntemperature_; ++temp_idx) {
+      const int i_temp_l = mat * ntemperature_ + temp_idx - 1;
+      const int i_temp_u = mat * ntemperature_ + temp_idx;
+
+      // Find the upper datapoint (if it exists).
+      if (kT <= temperature_points_[i_temp_u]) {
+        const double& xs_lower =
+          sigma_s[i_temp_l * ng2 + g_out * negroups_ + g_in];
+        const double& temp_lower = temperature_points_[i_temp_l];
+        const double& xs_upper =
+          sigma_s[i_temp_u * ng2 + g_out * negroups_ + g_in];
+        const double& temp_upper = temperature_points_[i_temp_u];
+
+        return xs_lower +
+               (kT - temp_lower) / (temp_upper - temp_lower) * xs_upper;
+      }
+
+      // Clamp to the upper bound once we detect it.
+      if (temperature_points_[i_temp_u] == -1.0) {
+        return sigma_s[i_temp_l * ng2 + g_out * negroups_ + g_in];
+      }
+    }
+
+    // Should never get here.
+    return 0.0;
+  } else {
+    return sigma_s[(mat * ntemperature_ + srh.temperature_idx()) * ng2 +
+                   g_out * negroups_ + g_in];
+  }
 }
 
 void FlatSourceDomain::batch_reset()
@@ -1183,6 +1276,8 @@ void FlatSourceDomain::flatten_xs()
     for (int t = 0; t < ntemperature_; t++) {
       for (int g_out = 0; g_out < negroups_; g_out++) {
         if (m.exists_in_model && t < m.n_temperature_points()) {
+          temperature_points_.push_back(m.kTs[t]);
+
           double sigma_t =
             m.get_xs(MgxsType::TOTAL, g_out, NULL, NULL, NULL, t, a);
           sigma_t_.push_back(sigma_t);
@@ -1228,6 +1323,7 @@ void FlatSourceDomain::flatten_xs()
               is_transport_stabilization_needed_ = true;
           }
         } else {
+          temperature_points_.push_back(-1.0);
           sigma_t_.push_back(0);
           nu_sigma_f_.push_back(0);
           sigma_f_.push_back(0);

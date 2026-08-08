@@ -7,6 +7,7 @@
 #include "openmc/random_ray/parallel_map.h"
 #include "openmc/random_ray/source_region.h"
 #include "openmc/source.h"
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -73,6 +74,12 @@ public:
   int64_t lookup_mesh_bin(int64_t sr, Position r) const;
   int lookup_mesh_idx(int64_t sr) const;
 
+  // Interpolate a given cross section for temperature.
+  double temp_interpolate_xs(
+    const vector<double>& sigma, SourceRegionHandle& srh, int g) const;
+  double temp_interpolate_scatter_xs(const vector<double>& sigma_s,
+    SourceRegionHandle& srh, int g_in, int g_out) const;
+
   //----------------------------------------------------------------------------
   // Static Data members
   static bool volume_normalized_flux_tallies_;
@@ -95,6 +102,13 @@ public:
   // Static data members
   static RandomRayVolumeEstimator volume_estimator_;
 
+  // Whether the dynamic temperature callback should be used or not.
+  static bool use_dynamic_temp_treatment_;
+
+  // The function callback to dynamically read a temperature from another
+  // application. This should return a temperature in Kelvin.
+  static std::function<double(Position)> dynamic_temp_callback_;
+
   //----------------------------------------------------------------------------
   // Public Data members
   double k_eff_ {1.0};              // Eigenvalue
@@ -111,6 +125,7 @@ public:
   // points x energy groups
   int n_materials_;
   int ntemperature_;
+  vector<double> temperature_points_;
   vector<double> sigma_t_;
   vector<double> nu_sigma_f_;
   vector<double> sigma_f_;
@@ -176,7 +191,7 @@ protected:
   int negroups_; // Number of energy groups in simulation
 
   double
-    simulation_volume_; // Total physical volume of the simulation domain, as
+    simulation_volume_; // Total physical volume of the simulationt domain, as
                         // defined by the 3D box of the random ray source
 
   double

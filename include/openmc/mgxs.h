@@ -22,7 +22,6 @@ namespace openmc {
 
 class Mgxs {
 private:
-  tensor::Tensor<double> kTs; // temperature in eV (k * T)
   AngleDistributionType
     scatter_format;       // flag for if this is legendre, histogram, or tabular
   int num_groups;         // number of energy groups
@@ -87,6 +86,7 @@ public:
   bool is_isotropic {
     true}; // used to skip search for angle indices if isotropic
   bool exists_in_model {true}; // Is this present in model
+  tensor::Tensor<double> kTs; // temperature in eV (k * T)
 
   Mgxs() = default;
   Mgxs(bool exists) : exists_in_model(exists) {}
