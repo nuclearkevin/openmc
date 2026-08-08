@@ -74,11 +74,18 @@ public:
   int64_t lookup_mesh_bin(int64_t sr, Position r) const;
   int lookup_mesh_idx(int64_t sr) const;
 
-  // Interpolate a given cross section for temperature.
+  // Interpolate cross sections with respect to temperature. This is
+  // very cache inefficient, the flattened MGXS should be reworked.
+  // For a source region handle.
   double temp_interpolate_xs(
     const vector<double>& sigma, SourceRegionHandle& srh, int g) const;
   double temp_interpolate_scatter_xs(const vector<double>& sigma_s,
     SourceRegionHandle& srh, int g_in, int g_out) const;
+  // For a source region index.
+  double temp_interpolate_xs(
+    const vector<double>& sigma, const int64_t & sr_idx, int g) const;
+  double temp_interpolate_scatter_xs(const vector<double>& sigma_s,
+    const int64_t & sr_idx, int g_in, int g_out) const;
 
   //----------------------------------------------------------------------------
   // Static Data members

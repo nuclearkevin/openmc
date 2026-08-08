@@ -80,6 +80,7 @@ FlatSourceDomain::FlatSourceDomain() : negroups_(data::mg.num_energy_groups_)
   simulation_volume_ = dims.x * dims.y * dims.z;
 }
 
+// TODO: reduce code duplication.
 double FlatSourceDomain::temp_interpolate_xs(
   const vector<double>& sigma, SourceRegionHandle& srh, int g) const
 {
@@ -172,6 +173,98 @@ double FlatSourceDomain::temp_interpolate_scatter_xs(
   }
 }
 
+double FlatSourceDomain::temp_interpolate_xs(
+  const vector<double>& sigma, const int64_t & sr_idx, int g) const
+{
+  const int mat = source_regions_.material(sr_idx);
+  if (use_dynamic_temp_treatment_) {
+    // Execute the callback to fetch temperature data from a multiphysics
+    // application.
+    const double kT =
+      FlatSourceDomain::dynamic_temp_callback_(source_regions_.position(sr_idx)) * K_BOLTZMANN;
+
+    // Clamp to lower bound.
+    if (kT <= temperature_points_[mat * ntemperature_]) {
+      return sigma[(mat * ntemperature_) * negroups_ + g];
+    }
+
+    for (int temp_idx = 1; temp_idx < ntemperature_; ++temp_idx) {
+      const int i_temp_l = mat * ntemperature_ + temp_idx - 1;
+      const int i_temp_u = mat * ntemperature_ + temp_idx;
+
+      // Find the upper datapoint (if it exists).
+      if (kT <= temperature_points_[i_temp_u]) {
+        const double& xs_lower = sigma[i_temp_l * negroups_ + g];
+        const double& temp_lower = temperature_points_[i_temp_l];
+        const double& xs_upper = sigma[i_temp_u * negroups_ + g];
+        const double& temp_upper = temperature_points_[i_temp_u];
+
+        return xs_lower +
+               (kT - temp_lower) / (temp_upper - temp_lower) * xs_upper;
+      }
+
+      // Clamp to the upper bound once we detect it.
+      if (temperature_points_[i_temp_u] == -1.0) {
+        return sigma[i_temp_l * negroups_ + g];
+      }
+    }
+
+    // Should never get here.
+    return 0.0;
+  } else {
+    return sigma[(mat * ntemperature_ + source_regions_.temperature_idx(sr_idx)) * negroups_ + g];
+  }
+}
+
+double FlatSourceDomain::temp_interpolate_scatter_xs(
+  const vector<double>& sigma_s, const int64_t & sr_idx, int g_in,
+  int g_out) const
+{
+  const int ng2 = negroups_ * negroups_;
+  const int mat = source_regions_.material(sr_idx);
+
+  if (use_dynamic_temp_treatment_) {
+    // Execute the callback to fetch temperature data from a multiphysics
+    // application.
+    const double kT =
+      FlatSourceDomain::dynamic_temp_callback_(source_regions_.position(sr_idx)) * K_BOLTZMANN;
+
+    // Clamp to lower bound.
+    if (kT <= temperature_points_[mat * ntemperature_]) {
+      return sigma_s[(mat * ntemperature_) * ng2 + g_out * negroups_ + g_in];
+    }
+
+    for (int temp_idx = 1; temp_idx < ntemperature_; ++temp_idx) {
+      const int i_temp_l = mat * ntemperature_ + temp_idx - 1;
+      const int i_temp_u = mat * ntemperature_ + temp_idx;
+
+      // Find the upper datapoint (if it exists).
+      if (kT <= temperature_points_[i_temp_u]) {
+        const double& xs_lower =
+          sigma_s[i_temp_l * ng2 + g_out * negroups_ + g_in];
+        const double& temp_lower = temperature_points_[i_temp_l];
+        const double& xs_upper =
+          sigma_s[i_temp_u * ng2 + g_out * negroups_ + g_in];
+        const double& temp_upper = temperature_points_[i_temp_u];
+
+        return xs_lower +
+               (kT - temp_lower) / (temp_upper - temp_lower) * xs_upper;
+      }
+
+      // Clamp to the upper bound once we detect it.
+      if (temperature_points_[i_temp_u] == -1.0) {
+        return sigma_s[i_temp_l * ng2 + g_out * negroups_ + g_in];
+      }
+    }
+
+    // Should never get here.
+    return 0.0;
+  } else {
+    return sigma_s[(mat * ntemperature_ + source_regions_.temperature_idx(sr_idx)) * ng2 +
+                   g_out * negroups_ + g_in];
+  }
+}
+
 void FlatSourceDomain::batch_reset()
 {
 // Reset scalar fluxes and iteration volume tallies to zero
@@ -213,16 +306,15 @@ void FlatSourceDomain::update_single_neutron_source(SourceRegionHandle& srh)
     const int scatter_offset =
       (material * ntemperature_ + temp) * negroups_ * negroups_;
     for (int g_out = 0; g_out < negroups_; g_out++) {
-      double sigma_t = sigma_t_[material_offset + g_out] * density_mult;
+      double sigma_t = temp_interpolate_xs(sigma_t_, srh, g_out) * density_mult;
       double scatter_source = 0.0;
       double fission_source = 0.0;
 
       for (int g_in = 0; g_in < negroups_; g_in++) {
         double scalar_flux = srh.scalar_flux_old(g_in);
-        double sigma_s =
-          sigma_s_[scatter_offset + g_out * negroups_ + g_in] * density_mult;
-        double nu_sigma_f = nu_sigma_f_[material_offset + g_in] * density_mult;
-        double chi = chi_[material_offset + g_out];
+        double sigma_s = temp_interpolate_scatter_xs(sigma_s_, srh, g_in, g_out) * density_mult;
+        double nu_sigma_f = temp_interpolate_xs(nu_sigma_f_, srh, g_in) * density_mult;
+        double chi = temp_interpolate_xs(chi_, srh, g_out);
 
         scatter_source += sigma_s * scalar_flux;
         if (settings::create_fission_neutrons) {
@@ -300,8 +392,7 @@ void FlatSourceDomain::set_flux_to_flux_plus_source(
         source_regions_.volume_sq(sr);
     }
   } else {
-    double sigma_t =
-      sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+    double sigma_t = temp_interpolate_xs(sigma_t_, sr, g) *
       source_regions_.density_mult(sr);
     source_regions_.scalar_flux_new(sr, g) /= (sigma_t * volume);
     source_regions_.scalar_flux_new(sr, g) += source_regions_.source(sr, g);
@@ -437,8 +528,7 @@ void FlatSourceDomain::compute_k_eff()
     double sr_fission_source_new = 0;
 
     for (int g = 0; g < negroups_; g++) {
-      double nu_sigma_f =
-        nu_sigma_f_[(material * ntemperature_ + temp) * negroups_ + g] *
+      double nu_sigma_f = temp_interpolate_xs(nu_sigma_f_, sr, g) *
         source_regions_.density_mult(sr);
       sr_fission_source_old +=
         nu_sigma_f * source_regions_.scalar_flux_old(sr, g);
@@ -670,7 +760,7 @@ double FlatSourceDomain::compute_fixed_source_normalization_factor() const
       // to get the total source strength in the expected units.
       double sigma_t = 1.0;
       if (material != MATERIAL_VOID) {
-        sigma_t = sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+        sigma_t = temp_interpolate_xs(sigma_t_, sr, g) *
                   source_regions_.density_mult(sr);
       }
       simulation_external_source_strength +=
@@ -746,8 +836,7 @@ void FlatSourceDomain::random_ray_tally()
         case SCORE_TOTAL:
           if (material != MATERIAL_VOID) {
             score =
-              flux * volume *
-              sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+              flux * volume * temp_interpolate_xs(sigma_t_, sr, g) *
               density_mult;
           }
           break;
@@ -755,8 +844,7 @@ void FlatSourceDomain::random_ray_tally()
         case SCORE_FISSION:
           if (material != MATERIAL_VOID) {
             score =
-              flux * volume *
-              sigma_f_[(material * ntemperature_ + temp) * negroups_ + g] *
+              flux * volume * temp_interpolate_xs(sigma_f_, sr, g) *
               density_mult;
           }
           break;
@@ -764,8 +852,7 @@ void FlatSourceDomain::random_ray_tally()
         case SCORE_NU_FISSION:
           if (material != MATERIAL_VOID) {
             score =
-              flux * volume *
-              nu_sigma_f_[(material * ntemperature_ + temp) * negroups_ + g] *
+              flux * volume * temp_interpolate_xs(nu_sigma_f_, sr, g) *
               density_mult;
           }
           break;
@@ -776,8 +863,7 @@ void FlatSourceDomain::random_ray_tally()
 
         case SCORE_KAPPA_FISSION:
           score =
-            flux * volume *
-            kappa_fission_[(material * ntemperature_ + temp) * negroups_ + g] *
+            flux * volume * temp_interpolate_xs(kappa_fission_, sr, g) *
             density_mult;
           break;
 
@@ -1047,8 +1133,7 @@ void FlatSourceDomain::output_to_vtk() const
             for (int g = 0; g < negroups_; g++) {
               int64_t source_element = fsr * negroups_ + g;
               float flux = evaluate_flux_at_point(voxel_positions[i], fsr, g);
-              double sigma_f =
-                sigma_f_[(mat * ntemperature_ + temp) * negroups_ + g] *
+              double sigma_f = temp_interpolate_xs(sigma_f_, fsr, g) *
                 source_regions_.density_mult(fsr);
               total_fission += sigma_f * flux;
             }
@@ -1071,7 +1156,7 @@ void FlatSourceDomain::output_to_vtk() const
             // multiply it back to get the true external source.
             double sigma_t = 1.0;
             if (mat != MATERIAL_VOID) {
-              sigma_t = sigma_t_[(mat * ntemperature_ + temp) * negroups_ + g] *
+              sigma_t = temp_interpolate_xs(sigma_t_, fsr, g) *
                         source_regions_.density_mult(fsr);
             }
             total_external += source_regions_.external_source(fsr, g) * sigma_t;
@@ -1413,8 +1498,7 @@ void FlatSourceDomain::set_fw_adjoint_sources()
       continue;
     }
     for (int g = 0; g < negroups_; g++) {
-      double sigma_t =
-        sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+      double sigma_t = temp_interpolate_xs(sigma_t_, sr, g) *
         source_regions_.density_mult(sr);
       source_regions_.external_source(sr, g) /= sigma_t;
       if (!std::isfinite(source_regions_.external_source(sr, g))) {
@@ -1785,8 +1869,7 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
     // Divide external source term by sigma_t
     if (material != C_NONE) {
       for (int g = 0; g < negroups_; g++) {
-        double sigma_t =
-          sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+        double sigma_t = temp_interpolate_xs(sigma_t_, handle, g) *
           handle.density_mult();
         handle.external_source(g) /= sigma_t;
       }
@@ -1870,14 +1953,10 @@ void FlatSourceDomain::apply_transport_stabilization()
     for (int g = 0; g < negroups_; g++) {
       // Only apply stabilization if the diagonal (in-group) scattering XS is
       // negative
-      double sigma_s =
-        sigma_s_[((material * ntemperature_ + temp) * negroups_ + g) *
-                   negroups_ +
-                 g] *
+      double sigma_s = temp_interpolate_scatter_xs(sigma_s_, srh, g, g) *
         density_mult;
       if (sigma_s < 0.0) {
-        double sigma_t =
-          sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+        double sigma_t = temp_interpolate_xs(sigma_t_, srh, g) *
           density_mult;
         double phi_new = source_regions_.scalar_flux_new(sr, g);
         double phi_old = source_regions_.scalar_flux_old(sr, g);
