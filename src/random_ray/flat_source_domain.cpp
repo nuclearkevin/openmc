@@ -38,8 +38,8 @@ std::unordered_map<int, vector<std::pair<Source::DomainType, int>>>
   FlatSourceDomain::mesh_domain_map_;
 std::vector<size_t> FlatSourceDomain::fw_cadis_local_targets_;
 bool FlatSourceDomain::use_dynamic_temp_treatment_ {false};
-std::function<double(const Position &, bool &)> FlatSourceDomain::dynamic_temp_callback_ {
-  [](const Position & pos, bool & found) {
+std::function<double(const double &, const double &, const double &, bool &)> FlatSourceDomain::dynamic_temp_callback_ {
+  [](const double & x, const double & y, const double & z, bool & found) {
     found = false;
     return 0.0;
   }
@@ -1701,7 +1701,7 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
     // cache the temperature interpolation factor.
     bool temp_found;
     const double kT =
-      FlatSourceDomain::dynamic_temp_callback_(gs.r(), temp_found) * K_BOLTZMANN;
+      FlatSourceDomain::dynamic_temp_callback_(gs.r().x, gs.r().y, gs.r().z, temp_found) * K_BOLTZMANN;
 
     // Only perform interpolation if the callback found a temmperature.
     if (temp_found) {

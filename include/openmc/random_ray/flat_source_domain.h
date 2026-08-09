@@ -109,7 +109,7 @@ public:
 
   // The function callback to dynamically read a temperature from another
   // application. This should return a temperature in Kelvin.
-  static std::function<double(const Position &, bool &)> dynamic_temp_callback_;
+  static std::function<double(const double &, const double &, const double &, bool &)> dynamic_temp_callback_;
 
   //----------------------------------------------------------------------------
   // Public Data members
