@@ -147,6 +147,7 @@ public:
   // Scalar fields
   int* material_;
   int* temperature_idx_;
+  double* temp_interp_;
   double* density_mult_;
   int* is_small_;
   int* n_hits_;
@@ -202,6 +203,9 @@ public:
 
   int& temperature_idx() { return *temperature_idx_; }
   const int temperature_idx() const { return *temperature_idx_; }
+
+  double& temp_interp() { return *temp_interp_; }
+  const double temp_interp() const { return *temp_interp_; }
 
   int& is_small() { return *is_small_; }
   const int is_small() const { return *is_small_; }
@@ -325,7 +329,11 @@ public:
   // Scalar fields
   int material_ {0}; //!< Index in openmc::model::materials array
   int temperature_idx_ {
-    0}; //!< Index into the MGXS array representing temperature
+    0}; //!< Lower bound index into the MGXS array representing temperature
+  //! The temperature interpolation fraction. A value of zero ignores
+  //! temperature interpolation entirely and just uses the MGXS at
+  //! temperature_idx_.
+  double temp_interp_ {0.0};
   double density_mult_ {1.0}; //!< A density multiplier queried from the cell
                               //!< corresponding to the source region.
   OpenMPMutex lock_;
@@ -407,6 +415,9 @@ public:
 
   int& temperature_idx(int64_t sr) { return temperature_idx_[sr]; }
   const int temperature_idx(int64_t sr) const { return temperature_idx_[sr]; }
+
+  double& temp_interp(int64_t sr) { return temp_interp_[sr]; }
+  const double temp_interp(int64_t sr) const { return temp_interp_[sr]; }
 
   double& density_mult(int64_t sr) { return density_mult_[sr]; }
   const double density_mult(int64_t sr) const { return density_mult_[sr]; }
@@ -643,6 +654,7 @@ private:
   // SoA storage for scalar fields (one item per source region)
   vector<int> material_;
   vector<int> temperature_idx_;
+  vector<double> temp_interp_;
   vector<double> density_mult_;
   vector<int> is_small_;
   vector<int> n_hits_;

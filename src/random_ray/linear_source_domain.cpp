@@ -44,6 +44,7 @@ void LinearSourceDomain::update_single_neutron_source(SourceRegionHandle& srh)
   // Add scattering + fission source
   int material = srh.material();
   int temp = srh.temperature_idx();
+  double interp = srh.temp_interp();
   double density_mult = srh.density_mult();
   if (material != MATERIAL_VOID) {
     double inverse_k_eff = 1.0 / k_eff_;
@@ -51,7 +52,7 @@ void LinearSourceDomain::update_single_neutron_source(SourceRegionHandle& srh)
 
     for (int g_out = 0; g_out < negroups_; g_out++) {
       double sigma_t =
-        sigma_t_[(material * ntemperature_ + temp) * negroups_ + g_out] *
+        temp_interpolate_xs(sigma_t_, material, temp, interp, g_out) *
         density_mult;
 
       double scatter_flat = 0.0f;
@@ -65,16 +66,11 @@ void LinearSourceDomain::update_single_neutron_source(SourceRegionHandle& srh)
         MomentArray flux_linear = srh.flux_moments_old(g_in);
 
         // Handles for cross sections
-        double sigma_s =
-          sigma_s_[((material * ntemperature_ + temp) * negroups_ + g_out) *
-                     negroups_ +
-                   g_in] *
+        double sigma_s = temp_interpolate_scatter_xs(sigma_s_, material, temp, interp, g_in, g_out) *
           density_mult;
-        double nu_sigma_f =
-          nu_sigma_f_[(material * ntemperature_ + temp) * negroups_ + g_in] *
+        double nu_sigma_f = temp_interpolate_xs(nu_sigma_f_, material, temp, interp, g_in) *
           density_mult;
-        double chi =
-          chi_[(material * ntemperature_ + temp) * negroups_ + g_out];
+        double chi = temp_interpolate_xs(chi_, material, temp, interp, g_out);
 
         // Compute source terms for flat and linear components of the flux
         scatter_flat += sigma_s * flux_flat;

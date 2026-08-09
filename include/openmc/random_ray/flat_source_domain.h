@@ -74,18 +74,13 @@ public:
   int64_t lookup_mesh_bin(int64_t sr, Position r) const;
   int lookup_mesh_idx(int64_t sr) const;
 
-  // Interpolate cross sections with respect to temperature. This is
-  // very cache inefficient, the flattened MGXS should be reworked.
-  // For a source region handle.
+  // Interpolate cross sections with respect to temperature.
+  // TODO: This is very cache inefficient, the flattened MGXS should be
+  // reworked.
   double temp_interpolate_xs(
-    const vector<double>& sigma, SourceRegionHandle& srh, int g) const;
+    const vector<double>& sigma, int mat, int lower_bnd, const double & interp, int g) const;
   double temp_interpolate_scatter_xs(const vector<double>& sigma_s,
-    SourceRegionHandle& srh, int g_in, int g_out) const;
-  // For a source region index.
-  double temp_interpolate_xs(
-    const vector<double>& sigma, const int64_t & sr_idx, int g) const;
-  double temp_interpolate_scatter_xs(const vector<double>& sigma_s,
-    const int64_t & sr_idx, int g_in, int g_out) const;
+    int mat, int lower_bnd, const double & interp, int g_in, int g_out) const;
 
   //----------------------------------------------------------------------------
   // Static Data members
@@ -114,7 +109,7 @@ public:
 
   // The function callback to dynamically read a temperature from another
   // application. This should return a temperature in Kelvin.
-  static std::function<double(Position)> dynamic_temp_callback_;
+  static std::function<double(const Position &, bool &)> dynamic_temp_callback_;
 
   //----------------------------------------------------------------------------
   // Public Data members

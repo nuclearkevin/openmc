@@ -435,11 +435,12 @@ void RandomRay::attenuate_flux_flat_source(
   // Get material
   int material = srh.material();
   int temp = srh.temperature_idx();
+  double interp = srh.temp_interp();
 
   // MOC incoming flux attenuation + source contribution/attenuation equation
   for (int g = 0; g < negroups_; g++) {
     float sigma_t =
-      domain_->sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+      domain_->temp_interpolate_xs(domain_->sigma_t_, material, temp, interp, g) *
       srh.density_mult();
     float tau = sigma_t * distance;
     float exponential = cjosey_exponential(tau); // exponential = 1 - exp(-tau)
@@ -536,6 +537,7 @@ void RandomRay::attenuate_flux_linear_source(
 
   int material = srh.material();
   int temp = srh.temperature_idx();
+  double interp = srh.temp_interp();
 
   Position& centroid = srh.centroid();
   Position midpoint = r + u() * (distance / 2.0);
@@ -565,7 +567,7 @@ void RandomRay::attenuate_flux_linear_source(
 
     // Compute tau, the optical thickness of the ray segment
     float sigma_t =
-      domain_->sigma_t_[(material * ntemperature_ + temp) * negroups_ + g] *
+      domain_->temp_interpolate_xs(domain_->sigma_t_, material, temp, interp, g) *
       srh.density_mult();
     float tau = sigma_t * distance;
 
