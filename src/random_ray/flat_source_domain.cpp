@@ -38,6 +38,12 @@ std::unordered_map<int, vector<std::pair<Source::DomainType, int>>>
   FlatSourceDomain::mesh_domain_map_;
 std::vector<size_t> FlatSourceDomain::fw_cadis_local_targets_;
 bool FlatSourceDomain::use_dynamic_temp_treatment_ {false};
+std::function<double(const Position &, bool &)> FlatSourceDomain::dynamic_temp_callback_ {
+  [](const Position & pos, bool & found) {
+    found = false;
+    return 0.0;
+  }
+};
 
 FlatSourceDomain::FlatSourceDomain() : negroups_(data::mg.num_energy_groups_)
 {
