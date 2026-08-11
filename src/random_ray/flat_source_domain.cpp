@@ -91,7 +91,7 @@ double FlatSourceDomain::temp_interpolate_xs(
 {
   const int mat_off = mat * ntemperature_ + lower_bnd;
   if (use_dynamic_temp_treatment_ && interp != 0.0) {
-    return sigma[mat_off * negroups_ + g]
+    return (1.0 - interp) * sigma[mat_off * negroups_ + g]
         + interp * sigma[(mat_off + 1) * negroups_ + g];
   } else {
     return sigma[mat_off * negroups_ + g];
@@ -105,7 +105,7 @@ double FlatSourceDomain::temp_interpolate_scatter_xs(
   const int mat_off = mat * ntemperature_ + lower_bnd;
   if (use_dynamic_temp_treatment_ && interp != 0.0) {
     // Perform interpolation if we've pre-computed an interpolation fraction.
-    return sigma_s[mat_off * ng2 + g_out * negroups_ + g_in]
+    return (1.0 - interp) * sigma_s[mat_off * ng2 + g_out * negroups_ + g_in]
         + interp * sigma_s[(mat_off + 1) * ng2 + g_out * negroups_ + g_in];
   } else {
     // No need to interpolate.
@@ -1216,8 +1216,6 @@ void FlatSourceDomain::flatten_xs()
     for (int t = 0; t < ntemperature_; t++) {
       for (int g_out = 0; g_out < negroups_; g_out++) {
         if (m.exists_in_model && t < m.n_temperature_points()) {
-          temperature_points_.push_back(m.kTs[t]);
-
           double sigma_t =
             m.get_xs(MgxsType::TOTAL, g_out, NULL, NULL, NULL, t, a);
           sigma_t_.push_back(sigma_t);
@@ -1263,7 +1261,6 @@ void FlatSourceDomain::flatten_xs()
               is_transport_stabilization_needed_ = true;
           }
         } else {
-          temperature_points_.push_back(-1.0);
           sigma_t_.push_back(0);
           nu_sigma_f_.push_back(0);
           sigma_f_.push_back(0);
@@ -1273,6 +1270,17 @@ void FlatSourceDomain::flatten_xs()
             sigma_s_.push_back(0);
           }
         }
+      }
+    }
+  }
+
+  for (int i = 0; i < n_materials_; i++) {
+    auto& m = data::mg.macro_xs_[i];
+    for (int t = 0; t < ntemperature_; t++) {
+      if (m.exists_in_model && t < m.n_temperature_points()) {
+        temperature_points_.push_back(m.kTs[t]);
+      } else {
+        temperature_points_.push_back(-1.0);
       }
     }
   }
@@ -1720,6 +1728,8 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
 
             temp_interp = (kT - temp_lower) / (temp_upper - temp_lower);
             temp = temp_idx - 1;
+            if (temp_interp < 1e-8)
+              temp_interp = 0.0;
             break;
           }
 
