@@ -99,54 +99,9 @@ void Mgxs::metadata_from_hdf5(hid_t xs_id, const vector<double>& temperature,
     settings::temperature_method = TemperatureMethod::NEAREST;
   }
 
-  switch (settings::temperature_method) {
-  case TemperatureMethod::NEAREST:
-    // Determine actual temperatures to read
-    for (const auto& T : temperature) {
-      // Determine the closest temperature value
-      auto i_closest = tensor::abs(temps_available - T).argmin();
-
-      double temp_actual = temps_available[i_closest];
-      if (std::fabs(temp_actual - T) < settings::temperature_tolerance) {
-        if (std::find(temps_to_read.begin(), temps_to_read.end(),
-              std::round(temp_actual)) == temps_to_read.end()) {
-          temps_to_read.push_back(std::round(temp_actual));
-        }
-      } else {
-        fatal_error(fmt::format(
-          "MGXS library does not contain cross sections "
-          "for {} at or near {} K. Available temperatures "
-          "are {} K. Consider making use of openmc.Settings.temperature "
-          "to specify how intermediate temperatures are treated.",
-          in_name, std::round(T), concatenate(temps_available)));
-      }
-    }
-    break;
-
-  case TemperatureMethod::INTERPOLATION:
-    for (int i = 0; i < temperature.size(); i++) {
-      for (int j = 0; j < num_temps; j++) {
-        if (j == (num_temps - 1)) {
-          fatal_error("MGXS Library does not contain cross sections for " +
-                      in_name + " at temperatures that bound " +
-                      std::to_string(std::round(temperature[i])));
-        }
-        if ((temps_available[j] <= temperature[i]) &&
-            (temperature[i] < temps_available[j + 1])) {
-          if (std::find(temps_to_read.begin(), temps_to_read.end(),
-                temps_available[j]) == temps_to_read.end()) {
-            temps_to_read.push_back(temps_available[j]);
-          }
-
-          if (std::find(temps_to_read.begin(), temps_to_read.end(),
-                temps_available[j + 1]) == temps_to_read.end()) {
-            temps_to_read.push_back(temps_available[j + 1]);
-          }
-          break;
-        }
-      }
-    }
-  }
+  // Read all temperatures to enable multiphysics feedback.
+  for (const auto & avail : temps_available)
+    temps_to_read.push_back(avail);
   std::sort(temps_to_read.begin(), temps_to_read.end());
 
   // Get the library's temperatures
@@ -304,6 +259,22 @@ Mgxs::Mgxs(const std::string& in_name, const vector<double>& mat_kTs,
   int num_group, int num_delay)
   : num_groups(num_group), num_delayed_groups(num_delay)
 {
+  // Add temperature points from the library to the list initialized
+  // for transport.
+  vector<double> all_kTs;
+  for (const auto & mat_temp : mat_kTs) {
+    all_kTs.push_back(mat_temp);
+  }
+  for (const auto & m : micros) {
+    for (const auto & micro_temp : m->kTs)
+    {
+      all_kTs.push_back(micro_temp);
+    }
+  }
+  std::sort(all_kTs.begin(), all_kTs.end());
+  auto unique_end = std::unique(all_kTs.begin(), all_kTs.end());
+  all_kTs.resize(std::distance(all_kTs.begin(), unique_end));
+
   // Get the minimum data needed to initialize:
   // Dont need awr, but lets just initialize it anyways
   double in_awr = -1.;
@@ -321,16 +292,16 @@ Mgxs::Mgxs(const std::string& in_name, const vector<double>& mat_kTs,
   vector<double> in_polar = micros[0]->polar;
   vector<double> in_azimuthal = micros[0]->azimuthal;
 
-  init(in_name, in_awr, mat_kTs, in_fissionable, in_scatter_format,
+  init(in_name, in_awr, all_kTs, in_fissionable, in_scatter_format,
     in_is_isotropic, in_polar, in_azimuthal);
 
   // Create the xs data for each temperature
-  for (int t = 0; t < mat_kTs.size(); t++) {
+  for (int t = 0; t < all_kTs.size(); t++) {
     xs[t] = XsData(in_fissionable, in_scatter_format, in_polar.size(),
       in_azimuthal.size(), num_groups, num_delayed_groups);
 
     // Find the right temperature index to use
-    double temp_desired = mat_kTs[t];
+    double temp_desired = all_kTs[t];
 
     // Create the list of temperature indices and interpolation factors for
     // each microscopic data at the material temperature
