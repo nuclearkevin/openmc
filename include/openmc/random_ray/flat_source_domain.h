@@ -111,6 +111,13 @@ public:
   // application. This should return a temperature in Kelvin.
   static std::function<bool(const double &, const double &, const double &, double &)> dynamic_temp_callback_;
 
+  // Whether the dynamic density callback should be used or not.
+  static bool use_dynamic_density_treatment_;
+
+  // The function callback to dynamically read a density multiplier from another
+  // application. This should return a unitless density multiplier (rho_mult = rho / rho_mgxs)
+  static std::function<bool(const double &, const double &, const double &, double &)> dynamic_density_callback_;
+
   //----------------------------------------------------------------------------
   // Public Data members
   double k_eff_ {1.0};              // Eigenvalue

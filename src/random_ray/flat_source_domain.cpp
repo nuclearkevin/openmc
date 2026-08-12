@@ -44,6 +44,13 @@ std::function<bool(const double &, const double &, const double &, double &)> Fl
     return false;
   }
 };
+bool FlatSourceDomain::use_dynamic_density_treatment_ {false};
+std::function<bool(const double &, const double &, const double &, double &)> FlatSourceDomain::dynamic_density_callback_ {
+  [](const double & x, const double & y, const double & z, double & density_mult) {
+    density_mult = 1.0;
+    return false;
+  }
+};
 
 FlatSourceDomain::FlatSourceDomain() : negroups_(data::mg.num_energy_groups_)
 {
@@ -1684,6 +1691,7 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
   int material = cell.material(gs.cell_instance());
   int temp = 0;
   double temp_interp = 0.0;
+  double rho_mult = cell.density_mult(gs.cell_instance());
 
   // If material total XS is extremely low, just set it to void to avoid
   // problems with 1/Sigma_t
@@ -1701,21 +1709,27 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
     }
   }
 
+  // Use a dynamic density treatment.
+  if (use_dynamic_density_treatment_ && material != MATERIAL_VOID) {
+    // Fetch the density multiplier from the callback. This may be expensive
+    // (mesh queries and MPI communication), so we only do it once and
+    // cache the result.
+    if (!FlatSourceDomain::dynamic_density_callback_(gs.r().x, gs.r().y, gs.r().z, rho_mult)) {
+      // If the callback returns false, reset the density multiplier to the cell value.
+      rho_mult = cell.density_mult(gs.cell_instance());
+    }
+  }
+
   // Use a dynamic temperature treatment.
-  // TODO: clean this up.
   if (use_dynamic_temp_treatment_ && material != MATERIAL_VOID) {
     // Fetch the temperature from the callback. This may be expensive
     // (mesh queries and MPI communication), so we only do it once and
     // cache the temperature interpolation factor.
-    double kT = 0.0;
-    bool temp_found =
-      FlatSourceDomain::dynamic_temp_callback_(gs.r().x, gs.r().y, gs.r().z, kT);
-    kT *= K_BOLTZMANN;
-
-    // Only perform interpolation if the callback found a temmperature.
-    if (temp_found) {
+    double app_kT = 0.0;
+    if (FlatSourceDomain::dynamic_temp_callback_(gs.r().x, gs.r().y, gs.r().z, app_kT)) {
+      app_kT *= K_BOLTZMANN;
       // Clamp to lower bound.
-      if (kT <= temperature_points_[material * ntemperature_]) {
+      if (app_kT <= temperature_points_[material * ntemperature_]) {
         temp = 0;
       } else {
         for (int temp_idx = 1; temp_idx < ntemperature_; ++temp_idx) {
@@ -1723,13 +1737,23 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
           const int i_temp_u = material * ntemperature_ + temp_idx;
 
           // Find the upper datapoint (if it exists).
-          if (kT <= temperature_points_[i_temp_u]) {
-            const double& temp_lower = temperature_points_[i_temp_l];
-            const double& temp_upper = temperature_points_[i_temp_u];
+          if (app_kT <= temperature_points_[i_temp_u]) {
+            const double& kT_lower = temperature_points_[i_temp_l];
+            const double& kT_upper = temperature_points_[i_temp_u];
 
-            temp_interp = (kT - temp_lower) / (temp_upper - temp_lower);
-            temp_interp = temp_interp < 1e-8 ? 0.0 : temp_interp;
-            temp = temp_idx - 1;
+            // Handle different temperature interpolation schemes.
+            switch (settings::temperature_method) {
+              case TemperatureMethod::NEAREST: {
+                temp = std::abs(kT_upper - app_kT) < std::abs(kT_lower - app_kT) ? temp_idx : temp_idx - 1;
+                break;
+              }
+              case TemperatureMethod::INTERPOLATION: {
+                temp_interp = (app_kT - kT_lower) / (kT_upper - kT_lower);
+                temp_interp = temp_interp < 1e-8 ? 0.0 : temp_interp;
+                temp = temp_idx - 1;
+                break;
+              }
+            }
             break;
           }
 
@@ -1751,7 +1775,7 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
   handle.material() = material;
   handle.temp_interp() = temp_interp;
   handle.temperature_idx() = temp;
-  handle.density_mult() = cell.density_mult(gs.cell_instance());
+  handle.density_mult() = rho_mult;
 
   // Store the mesh index (if any) assigned to this source region
   handle.mesh() = mesh_idx;
