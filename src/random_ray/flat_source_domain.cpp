@@ -1504,9 +1504,11 @@ void FlatSourceDomain::apply_mesh_to_cell_instances(int32_t i_cell,
       int64_t sr = source_region_offsets_[i_cell] + j;
       // Check if the key is already present in the mesh_map_
       if (mesh_map_.find(sr) != mesh_map_.end()) {
-        fatal_error(fmt::format("Source region {} already has mesh idx {} "
-                                "applied, but trying to apply mesh idx {}",
-          sr, mesh_map_[sr], mesh_idx));
+        if (mesh_map_.at(sr) != mesh_idx) {
+          fatal_error(fmt::format("Source region {} already has mesh idx {} "
+                                  "applied, but trying to apply mesh idx {}",
+            sr, mesh_map_[sr], mesh_idx));
+        }
       }
       // If the SR has not already been assigned, then we can write to it
       mesh_map_[sr] = mesh_idx;
