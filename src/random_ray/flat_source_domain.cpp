@@ -1707,7 +1707,7 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
     // Fetch the temperature from the callback. This may be expensive
     // (mesh queries and MPI communication), so we only do it once and
     // cache the temperature interpolation factor.
-    double kT;
+    double kT = 0.0;
     bool temp_found =
       FlatSourceDomain::dynamic_temp_callback_(gs.r().x, gs.r().y, gs.r().z, kT);
     kT *= K_BOLTZMANN;
@@ -1728,9 +1728,8 @@ SourceRegionHandle FlatSourceDomain::get_subdivided_source_region_handle(
             const double& temp_upper = temperature_points_[i_temp_u];
 
             temp_interp = (kT - temp_lower) / (temp_upper - temp_lower);
+            temp_interp = temp_interp < 1e-8 ? 0.0 : temp_interp;
             temp = temp_idx - 1;
-            if (temp_interp < 1e-8)
-              temp_interp = 0.0;
             break;
           }
 
