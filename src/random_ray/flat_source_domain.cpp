@@ -96,11 +96,17 @@ FlatSourceDomain::FlatSourceDomain() : negroups_(data::mg.num_energy_groups_)
 double FlatSourceDomain::temp_interpolate_xs(
   const vector<double>& sigma, int mat, int lower_bnd, const double & interp, int g) const
 {
+  if (mat == MATERIAL_VOID) {
+    return 0.0;
+  }
+
   const int mat_off = mat * ntemperature_ + lower_bnd;
   if (use_dynamic_temp_treatment_ && interp != 0.0) {
+    // Perform interpolation if we've pre-computed an interpolation fraction.
     return (1.0 - interp) * sigma[mat_off * negroups_ + g]
         + interp * sigma[(mat_off + 1) * negroups_ + g];
   } else {
+    // No need to interpolate.
     return sigma[mat_off * negroups_ + g];
   }
 }
@@ -108,6 +114,10 @@ double FlatSourceDomain::temp_interpolate_xs(
 double FlatSourceDomain::temp_interpolate_scatter_xs(
   const vector<double>& sigma_s, int mat, int lower_bnd, const double & interp, int g_in, int g_out) const
 {
+  if (mat == MATERIAL_VOID) {
+    return 0.0;
+  }
+
   const int ng2 = negroups_ * negroups_;
   const int mat_off = mat * ntemperature_ + lower_bnd;
   if (use_dynamic_temp_treatment_ && interp != 0.0) {
