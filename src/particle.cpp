@@ -391,10 +391,24 @@ void Particle::event_delta_advance()
   // If using the pointwise temperature callback, we can override the found cell
   // temperature with the queried mesh temperature.
   if (settings::delta_use_pointwise_temp) {
-    double app_kT = 0.0;
-    if (settings::delta_pointwise_callback(r().x, r().y, r().z, app_kT)) {
-      app_kT *= K_BOLTZMANN;
-      sqrtkT() = std::sqrt(app_kT);
+    double app_T = 0.0;
+    if (settings::delta_pointwise_callback(r().x, r().y, r().z, app_T)) {
+      // Error check temperature settings.
+      if (settings::temperature_method == TemperatureMethod::INTERPOLATION) {
+        if (app_T < (data::temperature_min - settings::temperature_tolerance)) {
+          throw std::runtime_error {
+            fmt::format("Temperature of {} K is below minimum temperature at "
+                        "which data is available of {} K.",
+              app_T, data::temperature_min)};
+        } else if (app_T > (data::temperature_max + settings::temperature_tolerance)) {
+          throw std::runtime_error {
+            fmt::format("Temperature of {} K is above maximum temperature at "
+                        "which data is available of {} K.",
+              app_T, data::temperature_max)};
+        }
+      }
+
+      sqrtkT() = std::sqrt(app_T * K_BOLTZMANN);
     }
   }
 
