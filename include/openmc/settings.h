@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_set>
+#include <functional>
 
 #include "pugixml.hpp"
 
@@ -67,7 +68,12 @@ extern bool create_delayed_neutrons; //!< create delayed fission neutrons?
 extern "C" bool cmfd_run;            //!< is a CMFD run?
 extern bool
   delayed_photon_scaling;   //!< Scale fission photon yield to include delayed
+
 extern bool delta_tracking; //!< use delta tracking
+//! Whether the pointwise temperature callback should be used with delta tracking.
+extern bool delta_use_pointwise_temp;
+extern std::function<bool(const double &, const double &, const double &, double &)> delta_pointwise_callback;
+
 extern "C" bool entropy_on; //!< calculate Shannon entropy?
 extern "C" bool
   event_based;      //!< use event-based mode (instead of history-based)

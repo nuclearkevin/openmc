@@ -388,6 +388,16 @@ void Particle::event_delta_advance()
   // Force re-calculation of material properties at the collision site.
   material_last() = C_NONE;
 
+  // If using the pointwise temperature callback, we can override the found cell
+  // temperature with the queried mesh temperature.
+  if (settings::delta_use_pointwise_temp) {
+    double app_kT = 0.0;
+    if (settings::delta_pointwise_callback(r().x, r().y, r().z, app_kT)) {
+      app_kT *= K_BOLTZMANN;
+      sqrtkT() = std::sqrt(app_kT);
+    }
+  }
+
   // Set particle weight to zero if it hit the time boundary
   if (distance == distance_cutoff) {
     wgt() = 0.0;

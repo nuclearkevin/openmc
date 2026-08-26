@@ -53,7 +53,16 @@ bool confidence_intervals {false};
 bool create_delayed_neutrons {true};
 bool create_fission_neutrons {true};
 bool delayed_photon_scaling {true};
+
 bool delta_tracking {false};
+bool delta_use_pointwise_temp {false};
+std::function<bool(const double &, const double &, const double &, double &)> delta_pointwise_callback {
+  [](const double & x, const double & y, const double & z, double & temperature) {
+    temperature = 0.0;
+    return false;
+  }
+};
+
 bool entropy_on {false};
 bool event_based {false};
 bool ifp_on {false};
