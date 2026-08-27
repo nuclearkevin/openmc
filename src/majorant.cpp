@@ -61,6 +61,11 @@ Majorant::Majorant(int i_universe) : maj_universe_(i_universe)
     }
   }
 
+  double max_mesh_density = 0.0;
+  if (settings::delta_use_pointwise_density) {
+    max_mesh_density = settings::delta_max_density_callback();
+  }
+
   // Next, find all materials contained in the majorant's universe. This also
   // obtains the maximum density multiplier applied to that material.
   std::unordered_set<int> unique_materials;
@@ -74,17 +79,20 @@ Majorant::Majorant(int i_universe) : maj_universe_(i_universe)
         continue;
       }
 
+      // Maximum density multiplier on the mesh.
+      const double max_mesh_mult = max_mesh_density / model::materials[i_material]->density_gpcc();
+
       // Check to see if we've found the contained material yet. If not, add
       // to the set of materials discovered and add to the map of density
       // multipliers.
       if (unique_materials.count(i_material) == 0) {
         unique_materials.emplace(i_material);
-        max_density_mult_[i_material] = cell->density_mult(instance);
+        max_density_mult_[i_material] = std::max(cell->density_mult(instance), max_mesh_mult);
       } else {
         // We've found this material already. Need to take the maximum density
         // multiplier.
         max_density_mult_.at(i_material) = std::max(
-          max_density_mult_.at(i_material), cell->density_mult(instance));
+          {max_density_mult_.at(i_material), cell->density_mult(instance), max_mesh_mult});
       }
     }
   }

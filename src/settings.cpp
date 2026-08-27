@@ -69,6 +69,11 @@ std::function<bool(const double &, const double &, const double &, double &)> de
     return false;
   }
 };
+std::function<double()> delta_max_density_callback {
+  []() {
+    return 0.0;
+  }
+};
 bool delta_use_pointwise_feedback {false};
 std::function<void(const double &, const double &, const double &, bool &, double &, bool &, double &)> delta_pointwise_callback {
   [](const double & x, const double & y, const double & z, bool & found_temp, double & temperature, bool & found_density, double & density) {
