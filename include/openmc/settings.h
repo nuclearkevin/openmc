@@ -72,7 +72,13 @@ extern bool
 extern bool delta_tracking; //!< use delta tracking
 //! Whether the pointwise temperature callback should be used with delta tracking.
 extern bool delta_use_pointwise_temp;
-extern std::function<bool(const double &, const double &, const double &, double &)> delta_pointwise_callback;
+extern std::function<bool(const double &, const double &, const double &, double &)> delta_temp_pointwise_callback;
+//! Whether the pointwise density callback should be used with delta tracking.
+extern bool delta_use_pointwise_density;
+extern std::function<bool(const double &, const double &, const double &, double &)> delta_density_pointwise_callback;
+//! Whether the combined feedback callback should be used (decrease the number of mesh queries).
+extern bool delta_use_pointwise_feedback;
+extern std::function<void(const double &, const double &, const double &, bool &, double &, bool &, double &)> delta_pointwise_callback;
 
 extern "C" bool entropy_on; //!< calculate Shannon entropy?
 extern "C" bool

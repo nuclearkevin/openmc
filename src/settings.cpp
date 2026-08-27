@@ -56,10 +56,26 @@ bool delayed_photon_scaling {true};
 
 bool delta_tracking {false};
 bool delta_use_pointwise_temp {false};
-std::function<bool(const double &, const double &, const double &, double &)> delta_pointwise_callback {
+std::function<bool(const double &, const double &, const double &, double &)> delta_temp_pointwise_callback {
   [](const double & x, const double & y, const double & z, double & temperature) {
     temperature = 0.0;
     return false;
+  }
+};
+bool delta_use_pointwise_density {false};
+std::function<bool(const double &, const double &, const double &, double &)> delta_density_pointwise_callback {
+  [](const double & x, const double & y, const double & z, double & density) {
+    density = 0.0;
+    return false;
+  }
+};
+bool delta_use_pointwise_feedback {false};
+std::function<void(const double &, const double &, const double &, bool &, double &, bool &, double &)> delta_pointwise_callback {
+  [](const double & x, const double & y, const double & z, bool & found_temp, double & temperature, bool & found_density, double & density) {
+    found_temp = false;
+    temperature = 0.0;
+    found_density = false;
+    density = 0.0;
   }
 };
 

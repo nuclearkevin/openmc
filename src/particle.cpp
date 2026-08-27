@@ -388,29 +388,8 @@ void Particle::event_delta_advance()
   // Force re-calculation of material properties at the collision site.
   material_last() = C_NONE;
 
-  // If using the pointwise temperature callback, we can override the found cell
-  // temperature with the queried mesh temperature.
-  if (settings::delta_use_pointwise_temp) {
-    double app_T = 0.0;
-    if (settings::delta_pointwise_callback(r().x, r().y, r().z, app_T)) {
-      // Error check temperature settings.
-      if (settings::temperature_method == TemperatureMethod::INTERPOLATION) {
-        if (app_T < (data::temperature_min - settings::temperature_tolerance)) {
-          throw std::runtime_error {
-            fmt::format("Temperature of {} K is below minimum temperature at "
-                        "which data is available of {} K.",
-              app_T, data::temperature_min)};
-        } else if (app_T > (data::temperature_max + settings::temperature_tolerance)) {
-          throw std::runtime_error {
-            fmt::format("Temperature of {} K is above maximum temperature at "
-                        "which data is available of {} K.",
-              app_T, data::temperature_max)};
-        }
-      }
-
-      sqrtkT() = std::sqrt(app_T * K_BOLTZMANN);
-    }
-  }
+  // Apply pointwise feedback.
+  delta_apply_pointwise_feedback();
 
   // Set particle weight to zero if it hit the time boundary
   if (distance == distance_cutoff) {
@@ -703,6 +682,81 @@ void Particle::event_death()
   if (settings::run_mode == RunMode::EIGENVALUE ||
       settings::use_shared_secondary_bank) {
     simulation::progeny_per_particle[current_work()] = n_progeny();
+  }
+}
+
+void Particle::delta_apply_pointwise_feedback()
+{
+  // Prioritize the combined callback.
+  if (settings::delta_use_pointwise_feedback) {
+    bool found_temp = false;
+    bool found_density = false;
+    double app_T = 0.0;
+    double app_rho = 0.0;
+
+    settings::delta_pointwise_callback(r().x, r().y, r().z, found_temp, app_T, found_density, app_rho);
+
+    if (found_temp) {
+      // Error check temperature settings.
+      if (settings::temperature_method == TemperatureMethod::INTERPOLATION) {
+        if (app_T < (data::temperature_min - settings::temperature_tolerance)) {
+          throw std::runtime_error {
+            fmt::format("Temperature of {} K is below minimum temperature at "
+                        "which data is available of {} K.",
+              app_T, data::temperature_min)};
+        } else if (app_T > (data::temperature_max + settings::temperature_tolerance)) {
+          throw std::runtime_error {
+            fmt::format("Temperature of {} K is above maximum temperature at "
+                        "which data is available of {} K.",
+              app_T, data::temperature_max)};
+        }
+      }
+
+      sqrtkT() = std::sqrt(app_T * K_BOLTZMANN);
+    }
+
+    if (found_density) {
+      const auto & m_cell = model::cells[lowest_coord().cell()];
+      const double mat_density = m_cell->density(cell_instance()) / m_cell->density_mult(cell_instance());
+      density_mult() = app_rho / mat_density;
+    }
+
+    return;
+  }
+
+  // If using the pointwise temperature callback, we can override the
+  // temperature with the one computed by the callback.
+  if (settings::delta_use_pointwise_temp) {
+    double app_T = 0.0;
+    if (settings::delta_temp_pointwise_callback(r().x, r().y, r().z, app_T)) {
+      // Error check temperature settings.
+      if (settings::temperature_method == TemperatureMethod::INTERPOLATION) {
+        if (app_T < (data::temperature_min - settings::temperature_tolerance)) {
+          throw std::runtime_error {
+            fmt::format("Temperature of {} K is below minimum temperature at "
+                        "which data is available of {} K.",
+              app_T, data::temperature_min)};
+        } else if (app_T > (data::temperature_max + settings::temperature_tolerance)) {
+          throw std::runtime_error {
+            fmt::format("Temperature of {} K is above maximum temperature at "
+                        "which data is available of {} K.",
+              app_T, data::temperature_max)};
+        }
+      }
+
+      sqrtkT() = std::sqrt(app_T * K_BOLTZMANN);
+    }
+  }
+
+  // If using the pointwise density callback, we can override the
+  // density multiplier with one computed from the callback.
+  if (settings::delta_use_pointwise_density) {
+    double app_rho = 1.0;
+    if (settings::delta_density_pointwise_callback(r().x, r().y, r().z, app_rho)) {
+      const auto & m_cell = model::cells[lowest_coord().cell()];
+      const double mat_density = m_cell->density(cell_instance()) / m_cell->density_mult(cell_instance());
+      density_mult() = app_rho / mat_density;
+    }
   }
 }
 

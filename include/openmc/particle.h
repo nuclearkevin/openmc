@@ -76,6 +76,9 @@ public:
   void event_check_limit_and_revive();
   void event_death();
 
+  // Apply pointwise feedback in delta tracking
+  void delta_apply_pointwise_feedback();
+
   //! pulse-height recording
   void pht_collision_energy();
   void pht_secondary_particles();
