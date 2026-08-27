@@ -62,7 +62,7 @@ Majorant::Majorant(int i_universe) : maj_universe_(i_universe)
   }
 
   double max_mesh_density = 0.0;
-  if (settings::delta_use_pointwise_density) {
+  if (settings::delta_use_pointwise_density || settings::delta_use_pointwise_feedback) {
     max_mesh_density = settings::delta_max_density_callback();
   }
 
